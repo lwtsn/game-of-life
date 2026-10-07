@@ -12,6 +12,12 @@ import (
 	"github.com/coder/websocket"
 )
 
+// Handler serves GET /ws and pushes a frame to every client. hub is that handler.
+type Handler interface {
+	http.Handler
+	Run(context.Context)
+}
+
 // wire is the provisional JSON frame sent on the socket.
 type wire struct {
 	Width  int   `json:"width"`

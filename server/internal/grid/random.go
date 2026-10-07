@@ -10,18 +10,12 @@ const (
 	rows = 50
 )
 
-type snapshot struct {
-	width  int
-	height int
-	cells  []int
+// Source produces the next full grid. random is the source this package provides.
+type Source interface {
+	Next() Frame
 }
 
-func (s snapshot) Width() int   { return s.width }
-func (s snapshot) Height() int  { return s.height }
-func (s snapshot) Cells() []int { return s.cells }
-
-// random fills the whole 80 by 50 grid. About one cell in six is alive,
-// so a frame is readable instead of solid noise.
+// About one cell in six is alive, so a frame is readable instead of solid noise.
 type random struct {
 	rng *rand.Rand
 }
