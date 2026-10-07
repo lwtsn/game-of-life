@@ -13,7 +13,7 @@ func TestAppStarts(t *testing.T) {
 
 	app := fx.New(
 		module(),
-		fx.Replace(Config{Addr: "127.0.0.1:0"}),
+		fx.Replace(config{addr: "127.0.0.1:0"}),
 		fx.NopLogger,
 	)
 	g.Expect(app.Err()).NotTo(HaveOccurred())

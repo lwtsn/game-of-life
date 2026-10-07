@@ -20,9 +20,9 @@ The board opens `ws://127.0.0.1:8080/ws` unless `VITE_WS_URL` is set. Start the 
 ```sh
 cd server
 go test ./...
-go run .
+go run ./cmd/server
 ```
 
-The server listens on `127.0.0.1:8080` and pushes a full 80 by 50 grid to `/ws` once a second. `internal/grid` builds the frame. `api` owns the socket.
+The server listens on `127.0.0.1:8080` and pushes a full 80 by 50 grid to `/ws` once a second. `cmd/server` composes the Fx modules. `internal/grid` and `api` export interfaces. Each `module.go` provides the private implementation.
 
 Regenerate mocks with `go tool mockery`.
