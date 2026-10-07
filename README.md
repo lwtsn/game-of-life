@@ -1,0 +1,28 @@
+# game_of_life
+
+Monorepo. `web` is the React app. `server` is the Go service.
+
+## Web
+
+```sh
+cd web
+npm install
+npm run dev
+npm test
+```
+
+`npm test` is Vitest. Playwright and Chromium are installed for later latency and component tests. There is no integration suite on Playwright yet.
+
+The board opens `ws://127.0.0.1:8080/ws` unless `VITE_WS_URL` is set. Start the Go server first.
+
+## Server
+
+```sh
+cd server
+go test ./...
+go run .
+```
+
+The server listens on `127.0.0.1:8080` and pushes a full 80 by 50 grid to `/ws` once a second. `internal/grid` builds the frame. `api` owns the socket.
+
+Regenerate mocks with `go tool mockery`.
