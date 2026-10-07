@@ -68,12 +68,17 @@ var _ = Describe("server", func() {
 
 func readSocketFrame(conn *websocket.Conn, ctx context.Context) socketFrame {
 	GinkgoHelper()
-	_, data, err := conn.Read(ctx)
-	Expect(err).NotTo(HaveOccurred())
+	for {
+		_, data, err := conn.Read(ctx)
+		Expect(err).NotTo(HaveOccurred())
 
-	var got socketFrame
-	Expect(json.Unmarshal(data, &got)).To(Succeed())
-	return got
+		var got socketFrame
+		Expect(json.Unmarshal(data, &got)).To(Succeed())
+		if got.Width == 0 {
+			continue
+		}
+		return got
+	}
 }
 
 func expectFullGrid(frame socketFrame) {
