@@ -1,4 +1,4 @@
-package api
+package controls
 
 import (
 	"net/http"
@@ -6,12 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var body struct {
-	Name string `json:"name"`
-}
-
-func (h *hub) layout(c *gin.Context) {
-
+func (h *handler) Layout(c *gin.Context) {
+	var body struct {
+		Name string `json:"name"`
+	}
 	_ = c.ShouldBindJSON(&body)
 	c.JSON(http.StatusOK, gin.H{"layout": body.Name, "applied": false})
 }

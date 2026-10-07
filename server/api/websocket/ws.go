@@ -1,4 +1,4 @@
-package api
+package websocket
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *hub) ws(c *gin.Context) {
+func (h *handler) Serve(c *gin.Context) {
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
 		OriginPatterns: []string{"127.0.0.1:*", "localhost:*"},
 	})
@@ -19,24 +19,23 @@ func (h *hub) ws(c *gin.Context) {
 	}
 	conn.SetReadLimit(1024)
 
-	ip := clientIP(c.Request)
-	h.track(ip, conn)
+	h.people.Track(c.Request, conn)
 
 	payload, err := h.grid.Current().ToJson()
 	if err != nil {
 		log.Printf("grid json: %v", err)
-		h.disconnect(conn)
+		h.people.Disconnect(conn)
 		return
 	}
 	if err := h.send(c.Request.Context(), conn, payload); err != nil {
-		h.disconnect(conn)
+		h.people.Disconnect(conn)
 		return
 	}
 
 	for {
 		_, _, err := conn.Read(c.Request.Context())
 		if err != nil {
-			h.disconnect(conn)
+			h.people.Disconnect(conn)
 			return
 		}
 	}
