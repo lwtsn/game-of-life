@@ -13,7 +13,7 @@ npm test
 
 `npm test` is Vitest. Playwright and Chromium are installed for later latency and component tests. There is no integration suite on Playwright yet.
 
-The board opens `ws://127.0.0.1:8080/ws` unless `VITE_WS_URL` is set. Start the Go server first.
+The board opens `ws://127.0.0.1:8080/ws` unless `VITE_WS_URL` is set. Start the Go server first. The page client lives in `web/src/api`. The hooks live in `web/src/hooks`.
 
 ## Server
 

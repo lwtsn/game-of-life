@@ -1,5 +1,7 @@
-export const COLS = 80
-export const ROWS = 50
+import { COLS, ROWS } from '../api/grid.ts'
+
+export { COLS, ROWS }
+
 export const GAP = 1
 
 export const patterns = [
