@@ -48,7 +48,9 @@ func start(lc fx.Lifecycle, server *http.Server, handler api.Handler) {
 			if err != nil {
 				return err
 			}
-			log.Printf("websocket listening on ws://%s/ws", ln.Addr())
+			// Addr stays ":0" until we keep the port Listen chose.
+			server.Addr = ln.Addr().String()
+			log.Printf("websocket listening on ws://%s/ws", server.Addr)
 			var ctx context.Context
 			ctx, cancel = context.WithCancel(context.Background())
 			go handler.Run(ctx)
