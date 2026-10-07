@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
 	"net/http/httptest"
 	"strings"
 	"time"
@@ -54,13 +55,17 @@ var _ = Describe("websocket", func() {
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(conn.CloseNow)
 
-		_, data, err := conn.Read(ctx)
-		Expect(err).NotTo(HaveOccurred())
-
+		data := readBoard(conn, ctx)
 		want, err := frame.ToJson()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(data).To(Equal(want))
 		Expect(people.Conns()).To(HaveLen(1))
+
+		var presence struct {
+			Colours []string `json:"colours"`
+		}
+		Expect(json.Unmarshal(readMessage(conn, ctx), &presence)).To(Succeed())
+		Expect(presence.Colours).To(Equal([]string{users.Colour("127.0.0.1")}))
 	})
 
 	It("forwards later board updates", func() {
@@ -94,16 +99,35 @@ var _ = Describe("websocket", func() {
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(conn.CloseNow)
 
-		_, data, err := conn.Read(dialCtx)
-		Expect(err).NotTo(HaveOccurred())
+		data := readBoard(conn, dialCtx)
 		want, err := first.ToJson()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(data).To(Equal(want))
 
 		updates <- secondJSON
 
-		_, data, err = conn.Read(dialCtx)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(data).To(Equal(secondJSON))
+		Expect(readBoard(conn, dialCtx)).To(Equal(secondJSON))
 	})
 })
+
+func readMessage(conn *websocket.Conn, ctx context.Context) []byte {
+	GinkgoHelper()
+	_, data, err := conn.Read(ctx)
+	Expect(err).NotTo(HaveOccurred())
+	return data
+}
+
+func readBoard(conn *websocket.Conn, ctx context.Context) []byte {
+	GinkgoHelper()
+	for {
+		data := readMessage(conn, ctx)
+		var body map[string]any
+		Expect(json.Unmarshal(data, &body)).To(Succeed())
+		if _, ok := body["colours"]; ok {
+			if _, grid := body["width"]; !grid {
+				continue
+			}
+		}
+		return data
+	}
+}
