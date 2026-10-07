@@ -1,0 +1,18 @@
+all: false
+dir: '{{.InterfaceDir}}'
+filename: mocks_test.go
+force-file-write: true
+formatter: goimports
+log-level: info
+structname: '{{.Mock}}{{.InterfaceName}}'
+pkgname: '{{.SrcPackageName}}'
+recursive: false
+template: testify
+packages:
+  game_of_life/server/internal/grid:
+    interfaces:
+      Source:
+        config:
+          dir: internal/grid/mocks
+          filename: source.go
+          pkgname: mocks
