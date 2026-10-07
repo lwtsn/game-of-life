@@ -7,63 +7,59 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"testing"
 
 	"game_of_life/server/internal/grid/mocks"
 
 	"github.com/gin-gonic/gin"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 )
 
-func TestStartCallsTheGrid(t *testing.T) {
-	g := NewWithT(t)
-	gin.SetMode(gin.TestMode)
+var _ = Describe("controls", func() {
+	It("starts the grid with the bound context", func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		DeferCleanup(cancel)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Start(mock.MatchedBy(func(got context.Context) bool {
+			return got == ctx
+		})).Once()
 
-	board := mocks.NewMockGrid(t)
-	board.EXPECT().Start(mock.MatchedBy(func(got context.Context) bool {
-		return got == ctx
-	})).Once()
+		h := New(board)
+		h.Bind(ctx)
 
-	h := New(board)
-	h.Bind(ctx)
+		engine := gin.New()
+		engine.POST("/start", h.Start)
+		srv := httptest.NewServer(engine)
+		DeferCleanup(srv.Close)
 
-	engine := gin.New()
-	engine.POST("/start", h.Start)
-	srv := httptest.NewServer(engine)
-	t.Cleanup(srv.Close)
+		res, err := http.Post(srv.URL+"/start", "application/json", nil)
+		Expect(err).NotTo(HaveOccurred())
+		defer res.Body.Close()
+		Expect(res.StatusCode).To(Equal(http.StatusNoContent))
+	})
 
-	res, err := http.Post(srv.URL+"/start", "application/json", nil)
-	g.Expect(err).NotTo(HaveOccurred())
-	defer res.Body.Close()
-	g.Expect(res.StatusCode).To(Equal(http.StatusNoContent))
-}
+	It("accepts a layout name and does not apply it", func() {
+		board := mocks.NewMockGrid(GinkgoT())
+		h := New(board)
 
-func TestLayoutIsAStub(t *testing.T) {
-	g := NewWithT(t)
-	gin.SetMode(gin.TestMode)
+		engine := gin.New()
+		engine.POST("/layout", h.Layout)
+		srv := httptest.NewServer(engine)
+		DeferCleanup(srv.Close)
 
-	board := mocks.NewMockGrid(t)
-	h := New(board)
+		res, err := http.Post(srv.URL+"/layout", "application/json", strings.NewReader(`{"name":"glider"}`))
+		Expect(err).NotTo(HaveOccurred())
+		defer res.Body.Close()
+		Expect(res.StatusCode).To(Equal(http.StatusOK))
 
-	engine := gin.New()
-	engine.POST("/layout", h.Layout)
-	srv := httptest.NewServer(engine)
-	t.Cleanup(srv.Close)
+		body, err := io.ReadAll(res.Body)
+		Expect(err).NotTo(HaveOccurred())
 
-	res, err := http.Post(srv.URL+"/layout", "application/json", strings.NewReader(`{"name":"glider"}`))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer res.Body.Close()
-	g.Expect(res.StatusCode).To(Equal(http.StatusOK))
-
-	body, err := io.ReadAll(res.Body)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var got map[string]any
-	g.Expect(json.Unmarshal(body, &got)).To(Succeed())
-	g.Expect(got["layout"]).To(Equal("glider"))
-	g.Expect(got["applied"]).To(Equal(false))
-}
+		var got map[string]any
+		Expect(json.Unmarshal(body, &got)).To(Succeed())
+		Expect(got["layout"]).To(Equal("glider"))
+		Expect(got["applied"]).To(Equal(false))
+	})
+})

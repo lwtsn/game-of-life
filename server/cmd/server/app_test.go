@@ -4,28 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"testing"
 	"time"
 
 	"github.com/coder/websocket"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/fx"
 )
-
-func TestAppStarts(t *testing.T) {
-	g := NewWithT(t)
-
-	app := fx.New(
-		module(),
-		fx.Replace(config{addr: "127.0.0.1:0"}),
-		fx.NopLogger,
-	)
-	g.Expect(app.Err()).NotTo(HaveOccurred())
-
-	ctx := context.Background()
-	g.Expect(app.Start(ctx)).To(Succeed())
-	g.Expect(app.Stop(ctx)).To(Succeed())
-}
 
 type socketFrame struct {
 	Width  int   `json:"width"`
@@ -33,57 +18,72 @@ type socketFrame struct {
 	Cells  []int `json:"cells"`
 }
 
-func TestModuleWiresTheAPI(t *testing.T) {
-	g := NewWithT(t)
+var _ = Describe("server", func() {
+	It("starts and stops", func() {
+		app := fx.New(
+			module(),
+			fx.Replace(config{addr: "127.0.0.1:0"}),
+			fx.NopLogger,
+		)
+		Expect(app.Err()).NotTo(HaveOccurred())
 
-	var srv *http.Server
-	app := fx.New(
-		module(),
-		fx.Replace(config{addr: "127.0.0.1:0"}),
-		fx.Populate(&srv),
-		fx.NopLogger,
-	)
-	g.Expect(app.Err()).NotTo(HaveOccurred())
-	g.Expect(app.Start(context.Background())).To(Succeed())
-	t.Cleanup(func() {
-		stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		g.Expect(app.Stop(stopCtx)).To(Succeed())
+		ctx := context.Background()
+		Expect(app.Start(ctx)).To(Succeed())
+		Expect(app.Stop(ctx)).To(Succeed())
 	})
 
-	g.Expect(srv).NotTo(BeNil())
-	g.Expect(srv.Addr).NotTo(HaveSuffix(":0"))
+	It("serves a live grid", func() {
+		var srv *http.Server
+		app := fx.New(
+			module(),
+			fx.Replace(config{addr: "127.0.0.1:0"}),
+			fx.Populate(&srv),
+			fx.NopLogger,
+		)
+		Expect(app.Err()).NotTo(HaveOccurred())
+		Expect(app.Start(context.Background())).To(Succeed())
+		DeferCleanup(func() {
+			stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			Expect(app.Stop(stopCtx)).To(Succeed())
+		})
 
-	dialCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-	t.Cleanup(cancel)
+		Expect(srv).NotTo(BeNil())
+		Expect(srv.Addr).NotTo(HaveSuffix(":0"))
 
-	conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
-	g.Expect(err).NotTo(HaveOccurred())
-	t.Cleanup(func() { conn.CloseNow() })
+		dialCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		DeferCleanup(cancel)
 
-	first := readSocketFrame(g, conn, dialCtx)
-	second := readSocketFrame(g, conn, dialCtx)
-	expectFullGrid(g, first)
-	expectFullGrid(g, second)
-	g.Expect(first.Cells).NotTo(Equal(second.Cells))
-}
+		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(conn.CloseNow)
 
-func readSocketFrame(g *WithT, conn *websocket.Conn, ctx context.Context) socketFrame {
+		first := readSocketFrame(conn, dialCtx)
+		second := readSocketFrame(conn, dialCtx)
+		expectFullGrid(first)
+		expectFullGrid(second)
+		Expect(first.Cells).NotTo(Equal(second.Cells))
+	})
+})
+
+func readSocketFrame(conn *websocket.Conn, ctx context.Context) socketFrame {
+	GinkgoHelper()
 	_, data, err := conn.Read(ctx)
-	g.Expect(err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	var got socketFrame
-	g.Expect(json.Unmarshal(data, &got)).To(Succeed())
+	Expect(json.Unmarshal(data, &got)).To(Succeed())
 	return got
 }
 
-func expectFullGrid(g *WithT, frame socketFrame) {
-	g.Expect(frame.Width).To(Equal(80))
-	g.Expect(frame.Height).To(Equal(50))
-	g.Expect(frame.Cells).To(HaveLen(80 * 50))
-	g.Expect(frame.Cells).To(ContainElement(0))
-	g.Expect(frame.Cells).To(ContainElement(1))
+func expectFullGrid(frame socketFrame) {
+	GinkgoHelper()
+	Expect(frame.Width).To(Equal(80))
+	Expect(frame.Height).To(Equal(50))
+	Expect(frame.Cells).To(HaveLen(80 * 50))
+	Expect(frame.Cells).To(ContainElement(0))
+	Expect(frame.Cells).To(ContainElement(1))
 	for _, cell := range frame.Cells {
-		g.Expect(cell).To(BeElementOf(0, 1))
+		Expect(cell).To(BeElementOf(0, 1))
 	}
 }
