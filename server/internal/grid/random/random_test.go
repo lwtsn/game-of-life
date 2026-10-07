@@ -9,8 +9,8 @@ import (
 func TestRandomFillsTheWholeGrid(t *testing.T) {
 	g := NewWithT(t)
 
-	first := newRandomSeed(1).Next()
-	second := newRandomSeed(2).Next()
+	first := newRandomSeed(1).Next(nil)
+	second := newRandomSeed(2).Next(nil)
 
 	g.Expect(first.Width()).To(Equal(cols))
 	g.Expect(first.Height()).To(Equal(rows))

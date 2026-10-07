@@ -47,16 +47,16 @@ func (_m *MockSource) EXPECT() *MockSource_Expecter {
 }
 
 // Next provides a mock function for the type MockSource
-func (_mock *MockSource) Next() source.Frame {
-	ret := _mock.Called()
+func (_mock *MockSource) Next(current source.Frame) source.Frame {
+	ret := _mock.Called(current)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Next")
 	}
 
 	var r0 source.Frame
-	if returnFunc, ok := ret.Get(0).(func() source.Frame); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(source.Frame) source.Frame); ok {
+		r0 = returnFunc(current)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(source.Frame)
@@ -71,13 +71,20 @@ type MockSource_Next_Call struct {
 }
 
 // Next is a helper method to define mock.On call
-func (_e *MockSource_Expecter) Next() *MockSource_Next_Call {
-	return &MockSource_Next_Call{Call: _e.mock.On("Next")}
+//   - current source.Frame
+func (_e *MockSource_Expecter) Next(current any) *MockSource_Next_Call {
+	return &MockSource_Next_Call{Call: _e.mock.On("Next", current)}
 }
 
-func (_c *MockSource_Next_Call) Run(run func()) *MockSource_Next_Call {
+func (_c *MockSource_Next_Call) Run(run func(current source.Frame)) *MockSource_Next_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 source.Frame
+		if args[0] != nil {
+			arg0 = args[0].(source.Frame)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -87,7 +94,7 @@ func (_c *MockSource_Next_Call) Return(frame source.Frame) *MockSource_Next_Call
 	return _c
 }
 
-func (_c *MockSource_Next_Call) RunAndReturn(run func() source.Frame) *MockSource_Next_Call {
+func (_c *MockSource_Next_Call) RunAndReturn(run func(current source.Frame) source.Frame) *MockSource_Next_Call {
 	_c.Call.Return(run)
 	return _c
 }

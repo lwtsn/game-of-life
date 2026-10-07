@@ -40,7 +40,8 @@ func newHub(board grid.Grid) *hub {
 	}
 }
 
-// Run publishes immediately, then again every second, until ctx is cancelled.
+// Run publishes the grid's current board immediately, then advances and
+// publishes again every second, until ctx is cancelled.
 func (h *hub) Run(ctx context.Context) {
 	h.publish()
 	ticker := time.NewTicker(time.Second)
@@ -50,6 +51,7 @@ func (h *hub) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			h.grid.Advance()
 			h.publish()
 		}
 	}
@@ -76,7 +78,7 @@ func (h *hub) frame() []byte {
 	if h.last != nil {
 		return h.last
 	}
-	payload, err := marshalFrame(h.grid.Next())
+	payload, err := marshalFrame(h.grid.Current())
 	if err != nil {
 		log.Printf("grid marshal: %v", err)
 		return nil
@@ -86,7 +88,7 @@ func (h *hub) frame() []byte {
 }
 
 func (h *hub) publish() {
-	payload, err := marshalFrame(h.grid.Next())
+	payload, err := marshalFrame(h.grid.Current())
 	if err != nil {
 		log.Printf("grid marshal: %v", err)
 		return

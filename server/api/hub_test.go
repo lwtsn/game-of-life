@@ -31,7 +31,7 @@ func TestClientReceivesGrid(t *testing.T) {
 	frame := fakeFrame{width: 2, height: 2, cells: cells}
 
 	board := mocks.NewMockGrid(t)
-	board.EXPECT().Next().Return(frame).Once()
+	board.EXPECT().Current().Return(frame).Once()
 
 	hub := newHub(board)
 	srv := httptest.NewServer(http.HandlerFunc(hub.ServeHTTP))
