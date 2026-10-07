@@ -2,7 +2,7 @@ package grid
 
 import "go.uber.org/fx"
 
-// Module provides a Source. The implementation stays in this package.
+// Module wires the random source into Fx. Callers receive a Source.
 var Module = fx.Module("grid",
 	fx.Provide(provideSource),
 )

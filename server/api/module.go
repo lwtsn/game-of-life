@@ -5,7 +5,7 @@ import (
 	"go.uber.org/fx"
 )
 
-// Module provides a Handler. The hub stays in this package.
+// Module wires the hub into Fx. Callers receive a Handler.
 var Module = fx.Module("api",
 	fx.Provide(provideHandler),
 )
