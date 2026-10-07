@@ -27,6 +27,9 @@ type snapshot struct {
 func (s snapshot) Width() int   { return s.width }
 func (s snapshot) Height() int  { return s.height }
 func (s snapshot) Cells() []int { return s.cells }
+func (s snapshot) ToJson() ([]byte, error) {
+	return source.Encode(s)
+}
 
 func newRandom() *random {
 	return newRandomSeed(time.Now().UnixNano())

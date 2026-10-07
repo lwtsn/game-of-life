@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"game_of_life/server/internal/grid/mocks"
+	"game_of_life/server/internal/grid/source"
 	"github.com/coder/websocket"
 	. "github.com/onsi/gomega"
 )
@@ -23,6 +23,9 @@ type fakeFrame struct {
 func (f fakeFrame) Width() int   { return f.width }
 func (f fakeFrame) Height() int  { return f.height }
 func (f fakeFrame) Cells() []int { return f.cells }
+func (f fakeFrame) ToJson() ([]byte, error) {
+	return source.Encode(f)
+}
 
 func TestClientReceivesGrid(t *testing.T) {
 	g := NewWithT(t)
@@ -47,7 +50,7 @@ func TestClientReceivesGrid(t *testing.T) {
 	_, data, err := conn.Read(ctx)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var got wire
-	g.Expect(json.Unmarshal(data, &got)).To(Succeed())
-	g.Expect(got).To(Equal(wire{Width: 2, Height: 2, Cells: cells}))
+	want, err := frame.ToJson()
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(data).To(Equal(want))
 }
