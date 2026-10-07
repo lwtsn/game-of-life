@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"game_of_life/server/internal/grid/source/mocks"
+	"game_of_life/server/internal/grid/mocks"
 	"github.com/coder/websocket"
 	. "github.com/onsi/gomega"
 )
@@ -30,10 +30,10 @@ func TestClientReceivesGrid(t *testing.T) {
 	cells := []int{1, 0, 0, 1}
 	frame := fakeFrame{width: 2, height: 2, cells: cells}
 
-	source := mocks.NewMockSource(t)
-	source.EXPECT().Next().Return(frame).Once()
+	board := mocks.NewMockGrid(t)
+	board.EXPECT().Next().Return(frame).Once()
 
-	hub := newHub(source)
+	hub := newHub(board)
 	srv := httptest.NewServer(http.HandlerFunc(hub.ServeHTTP))
 	t.Cleanup(srv.Close)
 

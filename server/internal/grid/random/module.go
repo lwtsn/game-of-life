@@ -5,7 +5,7 @@ import (
 	"go.uber.org/fx"
 )
 
-// Module wires this random filler into Fx. Callers receive a source.Source.
+// Module provides a source.Source. The grid reads it. A life source can replace this module.
 var Module = fx.Module("random",
 	fx.Provide(provide),
 )

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"game_of_life/server/internal/grid/source"
+	"game_of_life/server/internal/grid"
 	"github.com/coder/websocket"
 )
 
@@ -26,17 +26,17 @@ type wire struct {
 }
 
 type hub struct {
-	source source.Source
+	grid grid.Grid
 
 	mu    sync.Mutex
 	conns map[*websocket.Conn]struct{}
 	last  []byte
 }
 
-func newHub(source source.Source) *hub {
+func newHub(board grid.Grid) *hub {
 	return &hub{
-		source: source,
-		conns:  make(map[*websocket.Conn]struct{}),
+		grid:  board,
+		conns: make(map[*websocket.Conn]struct{}),
 	}
 }
 
@@ -55,11 +55,18 @@ func (h *hub) Run(ctx context.Context) {
 	}
 }
 
-func marshalFrame(frame source.Frame) ([]byte, error) {
+// frame is the shape the socket encodes. The grid returns these values.
+type frame interface {
+	Width() int
+	Height() int
+	Cells() []int
+}
+
+func marshalFrame(next frame) ([]byte, error) {
 	return json.Marshal(wire{
-		Width:  frame.Width(),
-		Height: frame.Height(),
-		Cells:  frame.Cells(),
+		Width:  next.Width(),
+		Height: next.Height(),
+		Cells:  next.Cells(),
 	})
 }
 
@@ -69,7 +76,7 @@ func (h *hub) frame() []byte {
 	if h.last != nil {
 		return h.last
 	}
-	payload, err := marshalFrame(h.source.Next())
+	payload, err := marshalFrame(h.grid.Next())
 	if err != nil {
 		log.Printf("grid marshal: %v", err)
 		return nil
@@ -79,7 +86,7 @@ func (h *hub) frame() []byte {
 }
 
 func (h *hub) publish() {
-	payload, err := marshalFrame(h.source.Next())
+	payload, err := marshalFrame(h.grid.Next())
 	if err != nil {
 		log.Printf("grid marshal: %v", err)
 		return

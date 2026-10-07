@@ -1,7 +1,7 @@
 package api
 
 import (
-	"game_of_life/server/internal/grid/source"
+	"game_of_life/server/internal/grid"
 	"go.uber.org/fx"
 )
 
@@ -10,6 +10,6 @@ var Module = fx.Module("api",
 	fx.Provide(provideHandler),
 )
 
-func provideHandler(source source.Source) Handler {
-	return newHub(source)
+func provideHandler(board grid.Grid) Handler {
+	return newHub(board)
 }
