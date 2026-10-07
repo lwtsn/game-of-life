@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"sync"
@@ -16,13 +15,6 @@ import (
 type Handler interface {
 	http.Handler
 	Run(context.Context)
-}
-
-// wire is the provisional JSON frame sent on the socket.
-type wire struct {
-	Width  int   `json:"width"`
-	Height int   `json:"height"`
-	Cells  []int `json:"cells"`
 }
 
 type hub struct {
@@ -57,28 +49,13 @@ func (h *hub) Run(ctx context.Context) {
 	}
 }
 
-// frame is the shape the socket encodes. The grid returns these values.
-type frame interface {
-	Width() int
-	Height() int
-	Cells() []int
-}
-
-func marshalFrame(next frame) ([]byte, error) {
-	return json.Marshal(wire{
-		Width:  next.Width(),
-		Height: next.Height(),
-		Cells:  next.Cells(),
-	})
-}
-
 func (h *hub) frame() []byte {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.last != nil {
 		return h.last
 	}
-	payload, err := marshalFrame(h.grid.Current())
+	payload, err := h.grid.Current().ToJson()
 	if err != nil {
 		log.Printf("grid marshal: %v", err)
 		return nil
@@ -88,7 +65,7 @@ func (h *hub) frame() []byte {
 }
 
 func (h *hub) publish() {
-	payload, err := marshalFrame(h.grid.Current())
+	payload, err := h.grid.Current().ToJson()
 	if err != nil {
 		log.Printf("grid marshal: %v", err)
 		return

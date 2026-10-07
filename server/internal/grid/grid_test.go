@@ -18,6 +18,9 @@ type stubFrame struct {
 func (f stubFrame) Width() int   { return f.width }
 func (f stubFrame) Height() int  { return f.height }
 func (f stubFrame) Cells() []int { return f.cells }
+func (f stubFrame) ToJson() ([]byte, error) {
+	return source.Encode(f)
+}
 
 func TestGridStoresTheCurrentValues(t *testing.T) {
 	g := NewWithT(t)
