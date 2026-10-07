@@ -46,12 +46,45 @@ func (_m *MockGrid) EXPECT() *MockGrid_Expecter {
 	return &MockGrid_Expecter{mock: &_m.Mock}
 }
 
-// Next provides a mock function for the type MockGrid
-func (_mock *MockGrid) Next() source.Frame {
+// Advance provides a mock function for the type MockGrid
+func (_mock *MockGrid) Advance() {
+	_mock.Called()
+	return
+}
+
+// MockGrid_Advance_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Advance'
+type MockGrid_Advance_Call struct {
+	*mock.Call
+}
+
+// Advance is a helper method to define mock.On call
+func (_e *MockGrid_Expecter) Advance() *MockGrid_Advance_Call {
+	return &MockGrid_Advance_Call{Call: _e.mock.On("Advance")}
+}
+
+func (_c *MockGrid_Advance_Call) Run(run func()) *MockGrid_Advance_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockGrid_Advance_Call) Return() *MockGrid_Advance_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockGrid_Advance_Call) RunAndReturn(run func()) *MockGrid_Advance_Call {
+	_c.Run(run)
+	return _c
+}
+
+// Current provides a mock function for the type MockGrid
+func (_mock *MockGrid) Current() source.Frame {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for Next")
+		panic("no return value specified for Current")
 	}
 
 	var r0 source.Frame
@@ -65,29 +98,29 @@ func (_mock *MockGrid) Next() source.Frame {
 	return r0
 }
 
-// MockGrid_Next_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Next'
-type MockGrid_Next_Call struct {
+// MockGrid_Current_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Current'
+type MockGrid_Current_Call struct {
 	*mock.Call
 }
 
-// Next is a helper method to define mock.On call
-func (_e *MockGrid_Expecter) Next() *MockGrid_Next_Call {
-	return &MockGrid_Next_Call{Call: _e.mock.On("Next")}
+// Current is a helper method to define mock.On call
+func (_e *MockGrid_Expecter) Current() *MockGrid_Current_Call {
+	return &MockGrid_Current_Call{Call: _e.mock.On("Current")}
 }
 
-func (_c *MockGrid_Next_Call) Run(run func()) *MockGrid_Next_Call {
+func (_c *MockGrid_Current_Call) Run(run func()) *MockGrid_Current_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *MockGrid_Next_Call) Return(frame source.Frame) *MockGrid_Next_Call {
+func (_c *MockGrid_Current_Call) Return(frame source.Frame) *MockGrid_Current_Call {
 	_c.Call.Return(frame)
 	return _c
 }
 
-func (_c *MockGrid_Next_Call) RunAndReturn(run func() source.Frame) *MockGrid_Next_Call {
+func (_c *MockGrid_Current_Call) RunAndReturn(run func() source.Frame) *MockGrid_Current_Call {
 	_c.Call.Return(run)
 	return _c
 }

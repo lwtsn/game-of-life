@@ -36,7 +36,7 @@ func newRandomSeed(seed int64) *random {
 	return &random{rng: rand.New(rand.NewPCG(uint64(seed), uint64(seed>>1|1)))}
 }
 
-func (r *random) Next() source.Frame {
+func (r *random) Next(source.Frame) source.Frame {
 	cells := make([]int, cols*rows)
 	for i := range cells {
 		if r.rng.IntN(6) == 0 {

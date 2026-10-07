@@ -7,7 +7,8 @@ type Frame interface {
 	Cells() []int
 }
 
-// Source produces the next full grid.
+// Source produces the next values from the board the grid stores.
+// current is that board. It is nil on the first step.
 type Source interface {
-	Next() Frame
+	Next(current Frame) Frame
 }
