@@ -23,6 +23,6 @@ go test ./...
 go run ./cmd/server
 ```
 
-The server listens on `127.0.0.1:8080` and pushes a full 80 by 50 grid to `/ws` once a second. `internal/grid/source` defines the source. `internal/grid/random` fills the grid. `cmd/server` wires that implementation into the API.
+The server listens on `127.0.0.1:8080` and pushes a full 80 by 50 grid to `/ws` once a second. The grid asks a source for the next values, and the API reads the grid. `internal/grid/random` is that source for now. Replace it with the life source when that source holds the game state.
 
 Regenerate mocks with `go tool mockery`.
