@@ -9,23 +9,31 @@ import (
 	"testing"
 	"time"
 
-	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/mocks"
 	"github.com/coder/websocket"
 	. "github.com/onsi/gomega"
 )
 
+type fakeFrame struct {
+	width  int
+	height int
+	cells  []int
+}
+
+func (f fakeFrame) Width() int   { return f.width }
+func (f fakeFrame) Height() int  { return f.height }
+func (f fakeFrame) Cells() []int { return f.cells }
+
 func TestClientReceivesGrid(t *testing.T) {
 	g := NewWithT(t)
 
-	cells := make([]int, grid.Cols*grid.Rows)
-	cells[0] = 1
-	snap := grid.Snapshot{Width: grid.Cols, Height: grid.Rows, Cells: cells}
+	cells := []int{1, 0, 0, 1}
+	frame := fakeFrame{width: 2, height: 2, cells: cells}
 
 	source := mocks.NewMockSource(t)
-	source.EXPECT().Next().Return(snap).Once()
+	source.EXPECT().Next().Return(frame).Once()
 
-	hub := NewHub(source)
+	hub := newHub(source)
 	srv := httptest.NewServer(http.HandlerFunc(hub.ServeHTTP))
 	t.Cleanup(srv.Close)
 
@@ -39,7 +47,7 @@ func TestClientReceivesGrid(t *testing.T) {
 	_, data, err := conn.Read(ctx)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var got grid.Snapshot
+	var got wire
 	g.Expect(json.Unmarshal(data, &got)).To(Succeed())
-	g.Expect(got).To(Equal(snap))
+	g.Expect(got).To(Equal(wire{Width: 2, Height: 2, Cells: cells}))
 }

@@ -13,44 +13,34 @@ import (
 	"go.uber.org/fx"
 )
 
-type Config struct {
-	Addr string
-}
-
-func main() {
-	fx.New(module()).Run()
+type config struct {
+	addr string
 }
 
 func module() fx.Option {
 	return fx.Options(
-		fx.Provide(loadConfig, newSource, api.NewHub, newMux, newHTTPServer),
+		grid.Module,
+		api.Module,
+		fx.Provide(provideConfig, provideHTTP),
 		fx.Invoke(start),
 	)
 }
 
-func loadConfig() Config {
+func provideConfig() config {
 	addr := os.Getenv("GAME_ADDR")
 	if addr == "" {
 		addr = "127.0.0.1:8080"
 	}
-	return Config{Addr: addr}
+	return config{addr: addr}
 }
 
-func newSource() grid.Source {
-	return grid.NewRandom()
-}
-
-func newMux(hub *api.Hub) *http.ServeMux {
+func provideHTTP(cfg config, handler api.Handler) *http.Server {
 	mux := http.NewServeMux()
-	mux.Handle("GET /ws", hub)
-	return mux
+	mux.Handle("GET /ws", handler)
+	return &http.Server{Addr: cfg.addr, Handler: mux}
 }
 
-func newHTTPServer(cfg Config, mux *http.ServeMux) *http.Server {
-	return &http.Server{Addr: cfg.Addr, Handler: mux}
-}
-
-func start(lc fx.Lifecycle, server *http.Server, hub *api.Hub) {
+func start(lc fx.Lifecycle, server *http.Server, handler api.Handler) {
 	var cancel context.CancelFunc
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
@@ -61,7 +51,7 @@ func start(lc fx.Lifecycle, server *http.Server, hub *api.Hub) {
 			log.Printf("websocket listening on ws://%s/ws", ln.Addr())
 			var ctx context.Context
 			ctx, cancel = context.WithCancel(context.Background())
-			go hub.Run(ctx)
+			go handler.Run(ctx)
 			go func() {
 				err := server.Serve(ln)
 				if err != nil && !errors.Is(err, http.ErrServerClosed) {

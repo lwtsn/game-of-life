@@ -12,8 +12,14 @@ import (
 	"github.com/coder/websocket"
 )
 
-// Hub pushes one grid frame to every connected client, once a second.
-type Hub struct {
+// wire is the provisional JSON frame sent on the socket.
+type wire struct {
+	Width  int   `json:"width"`
+	Height int   `json:"height"`
+	Cells  []int `json:"cells"`
+}
+
+type hub struct {
 	source grid.Source
 
 	mu    sync.Mutex
@@ -21,15 +27,15 @@ type Hub struct {
 	last  []byte
 }
 
-func NewHub(source grid.Source) *Hub {
-	return &Hub{
+func newHub(source grid.Source) *hub {
+	return &hub{
 		source: source,
 		conns:  make(map[*websocket.Conn]struct{}),
 	}
 }
 
 // Run publishes immediately, then again every second, until ctx is cancelled.
-func (h *Hub) Run(ctx context.Context) {
+func (h *hub) Run(ctx context.Context) {
 	h.publish()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -43,13 +49,21 @@ func (h *Hub) Run(ctx context.Context) {
 	}
 }
 
-func (h *Hub) frame() []byte {
+func marshalFrame(frame grid.Frame) ([]byte, error) {
+	return json.Marshal(wire{
+		Width:  frame.Width(),
+		Height: frame.Height(),
+		Cells:  frame.Cells(),
+	})
+}
+
+func (h *hub) frame() []byte {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.last != nil {
 		return h.last
 	}
-	payload, err := json.Marshal(h.source.Next())
+	payload, err := marshalFrame(h.source.Next())
 	if err != nil {
 		log.Printf("grid marshal: %v", err)
 		return nil
@@ -58,8 +72,8 @@ func (h *Hub) frame() []byte {
 	return payload
 }
 
-func (h *Hub) publish() {
-	payload, err := json.Marshal(h.source.Next())
+func (h *hub) publish() {
+	payload, err := marshalFrame(h.source.Next())
 	if err != nil {
 		log.Printf("grid marshal: %v", err)
 		return
@@ -81,7 +95,7 @@ func (h *Hub) publish() {
 }
 
 // ServeHTTP upgrades GET /ws and keeps the socket open until the client leaves.
-func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns: []string{"127.0.0.1:*", "localhost:*"},
 	})
@@ -109,7 +123,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Hub) drop(conn *websocket.Conn) {
+func (h *hub) drop(conn *websocket.Conn) {
 	h.mu.Lock()
 	delete(h.conns, conn)
 	h.mu.Unlock()
