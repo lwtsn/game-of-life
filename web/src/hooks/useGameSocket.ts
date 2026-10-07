@@ -1,4 +1,5 @@
 import useWebSocketImport, { ReadyState } from 'react-use-websocket'
+import { socketUrl } from '../api/socket.ts'
 
 type UseWebSocket = typeof useWebSocketImport
 
@@ -19,28 +20,21 @@ function resolveUseWebSocket(mod: UseWebSocket): UseWebSocket {
 
 const useWebSocket = resolveUseWebSocket(useWebSocketImport)
 
-function defaultSocketUrl() {
-  const configured = import.meta.env.VITE_WS_URL
-  if (configured) return configured
-  if (import.meta.env.MODE === 'test') return ''
-  return 'ws://127.0.0.1:8080/ws'
-}
-
 export function useGameSocket() {
-  const socketUrl = defaultSocketUrl()
+  const url = socketUrl()
 
   const socket = useWebSocket(
-    socketUrl,
+    url,
     {
       share: true,
       shouldReconnect: () => true,
       reconnectAttempts: 10,
       reconnectInterval: 3_000,
     },
-    socketUrl.length > 0,
+    url.length > 0,
   )
 
-  return { socketUrl, ...socket }
+  return { socketUrl: url, ...socket }
 }
 
 export { ReadyState }

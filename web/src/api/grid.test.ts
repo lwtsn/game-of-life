@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COLS, ROWS } from './components/patterns.ts'
-import { readGridFrame } from './gridFrame.ts'
+import { COLS, readGridFrame, ROWS } from './grid.ts'
 
 describe('readGridFrame', () => {
   it('accepts a full 80 by 50 frame', () => {

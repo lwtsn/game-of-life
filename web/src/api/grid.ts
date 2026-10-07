@@ -1,4 +1,5 @@
-import { COLS, ROWS } from './components/patterns.ts'
+export const COLS = 80
+export const ROWS = 50
 
 export type GridFrame = {
   width: number
