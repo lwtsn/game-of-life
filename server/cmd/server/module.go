@@ -11,6 +11,7 @@ import (
 	"game_of_life/server/api"
 	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/random"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 )
 
@@ -38,12 +39,13 @@ func provideConfig() config {
 }
 
 func provideHTTP(cfg config, handler api.Handler) *http.Server {
-	mux := http.NewServeMux()
-	mux.Handle("GET /ws", handler)
-	return &http.Server{Addr: cfg.addr, Handler: mux}
+	gin.SetMode(gin.ReleaseMode)
+	engine := gin.New()
+	handler.Register(engine)
+	return &http.Server{Addr: cfg.addr, Handler: engine}
 }
 
-func start(lc fx.Lifecycle, server *http.Server, handler api.Handler) {
+func start(lc fx.Lifecycle, server *http.Server, handler api.Handler, board grid.Grid) {
 	var cancel context.CancelFunc
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
@@ -57,6 +59,7 @@ func start(lc fx.Lifecycle, server *http.Server, handler api.Handler) {
 			var ctx context.Context
 			ctx, cancel = context.WithCancel(context.Background())
 			go handler.Run(ctx)
+			board.Start(ctx)
 			go func() {
 				err := server.Serve(ln)
 				if err != nil && !errors.Is(err, http.ErrServerClosed) {

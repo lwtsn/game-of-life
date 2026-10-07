@@ -1,7 +1,9 @@
 package grid
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/grid/source/mocks"
@@ -55,4 +57,21 @@ func TestAdvancePassesTheStoredBoardToTheSource(t *testing.T) {
 	board.Advance()
 
 	g.Expect(board.Current().Cells()).To(Equal([]int{0, 1, 0, 0}))
+}
+
+func TestStartPublishesTheCurrentBoard(t *testing.T) {
+	g := NewWithT(t)
+
+	frame := stubFrame{width: 2, height: 2, cells: []int{1, 0, 0, 1}}
+	src := mocks.NewMockSource(t)
+	src.EXPECT().Next(nil).Return(frame).Once()
+
+	board := newGrid(src)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	board.Start(ctx)
+
+	want, err := frame.ToJson()
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Eventually(board.Updates(), time.Second, 10*time.Millisecond).Should(Receive(Equal(want)))
 }

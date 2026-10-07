@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	"context"
 	"game_of_life/server/internal/grid/source"
 
 	mock "github.com/stretchr/testify/mock"
@@ -121,6 +122,92 @@ func (_c *MockGrid_Current_Call) Return(frame source.Frame) *MockGrid_Current_Ca
 }
 
 func (_c *MockGrid_Current_Call) RunAndReturn(run func() source.Frame) *MockGrid_Current_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Start provides a mock function for the type MockGrid
+func (_mock *MockGrid) Start(context1 context.Context) {
+	_mock.Called(context1)
+	return
+}
+
+// MockGrid_Start_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Start'
+type MockGrid_Start_Call struct {
+	*mock.Call
+}
+
+// Start is a helper method to define mock.On call
+//   - context1 context.Context
+func (_e *MockGrid_Expecter) Start(context1 any) *MockGrid_Start_Call {
+	return &MockGrid_Start_Call{Call: _e.mock.On("Start", context1)}
+}
+
+func (_c *MockGrid_Start_Call) Run(run func(context1 context.Context)) *MockGrid_Start_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGrid_Start_Call) Return() *MockGrid_Start_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockGrid_Start_Call) RunAndReturn(run func(context1 context.Context)) *MockGrid_Start_Call {
+	_c.Run(run)
+	return _c
+}
+
+// Updates provides a mock function for the type MockGrid
+func (_mock *MockGrid) Updates() <-chan []byte {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Updates")
+	}
+
+	var r0 <-chan []byte
+	if returnFunc, ok := ret.Get(0).(func() <-chan []byte); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(<-chan []byte)
+		}
+	}
+	return r0
+}
+
+// MockGrid_Updates_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Updates'
+type MockGrid_Updates_Call struct {
+	*mock.Call
+}
+
+// Updates is a helper method to define mock.On call
+func (_e *MockGrid_Expecter) Updates() *MockGrid_Updates_Call {
+	return &MockGrid_Updates_Call{Call: _e.mock.On("Updates")}
+}
+
+func (_c *MockGrid_Updates_Call) Run(run func()) *MockGrid_Updates_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockGrid_Updates_Call) Return(bytesCh <-chan []byte) *MockGrid_Updates_Call {
+	_c.Call.Return(bytesCh)
+	return _c
+}
+
+func (_c *MockGrid_Updates_Call) RunAndReturn(run func() <-chan []byte) *MockGrid_Updates_Call {
 	_c.Call.Return(run)
 	return _c
 }
