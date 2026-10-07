@@ -31,11 +31,13 @@ func (h *handler) Serve(c *gin.Context) {
 		h.people.Disconnect(conn)
 		return
 	}
+	h.broadcastColours()
 
 	for {
 		_, _, err := conn.Read(c.Request.Context())
 		if err != nil {
 			h.people.Disconnect(conn)
+			h.broadcastColours()
 			return
 		}
 	}

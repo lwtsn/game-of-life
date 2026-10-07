@@ -2,6 +2,8 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
+	"log"
 	"sync"
 
 	"game_of_life/server/api/users"
@@ -35,17 +37,44 @@ func (h *handler) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case payload := <-h.grid.Updates():
-			h.writeAll(payload)
+			if h.writeAll(payload) {
+				h.broadcastColours()
+			}
 		}
 	}
 }
 
-func (h *handler) writeAll(payload []byte) {
+func (h *handler) broadcastColours() {
+	payload, err := h.colourPayload()
+	if err != nil {
+		log.Printf("colours json: %v", err)
+		return
+	}
+	if h.writeAll(payload) {
+		payload, err = h.colourPayload()
+		if err != nil {
+			log.Printf("colours json: %v", err)
+			return
+		}
+		h.writeAll(payload)
+	}
+}
+
+func (h *handler) colourPayload() ([]byte, error) {
+	return json.Marshal(struct {
+		Colours []string `json:"colours"`
+	}{Colours: h.people.Colours()})
+}
+
+func (h *handler) writeAll(payload []byte) bool {
+	dropped := false
 	for _, conn := range h.people.Conns() {
 		if err := h.send(context.Background(), conn, payload); err != nil {
 			h.people.Disconnect(conn)
+			dropped = true
 		}
 	}
+	return dropped
 }
 
 func (h *handler) send(ctx context.Context, conn *websocket.Conn, payload []byte) error {

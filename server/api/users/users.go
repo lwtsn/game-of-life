@@ -3,6 +3,7 @@ package users
 import (
 	"net"
 	"net/http"
+	"slices"
 	"sync"
 
 	"github.com/coder/websocket"
@@ -13,6 +14,7 @@ type Tracker interface {
 	Track(*http.Request, *websocket.Conn)
 	Disconnect(*websocket.Conn)
 	Conns() []*websocket.Conn
+	Colours() []string
 }
 
 type tracker struct {
@@ -34,8 +36,19 @@ func clientIP(r *http.Request) string {
 
 func (t *tracker) Track(r *http.Request, conn *websocket.Conn) {
 	t.mu.Lock()
-	t.users[clientIP(r)] = conn
+	t.users[canonicalIP(clientIP(r))] = conn
 	t.mu.Unlock()
+}
+
+func (t *tracker) Colours() []string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	colours := make([]string, 0, len(t.users))
+	for ip := range t.users {
+		colours = append(colours, Colour(ip))
+	}
+	slices.Sort(colours)
+	return colours
 }
 
 func (t *tracker) Conns() []*websocket.Conn {

@@ -1,17 +1,19 @@
-const colors = ['#112D4E', '#3F72AF', '#7AA0CE']
+type PresenceProps = {
+  colours: string[]
+}
 
-export function Presence() {
+export function Presence({ colours }: PresenceProps) {
   return (
     <ul
       aria-label="Connected"
-      className="absolute top-4 right-4 z-40 flex items-center gap-2"
+      className="absolute top-4 right-4 z-40 flex max-h-48 max-w-56 flex-wrap content-start justify-end gap-1.5 overflow-y-auto"
     >
-      {colors.map((color) => (
+      {colours.map((colour, index) => (
         <li
-          key={color}
+          key={`${colour}-${index}`}
           aria-hidden="true"
           className="size-3.5 rounded-full"
-          style={{ backgroundColor: color }}
+          style={{ backgroundColor: colour }}
         />
       ))}
     </ul>
