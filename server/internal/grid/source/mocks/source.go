@@ -5,7 +5,7 @@
 package mocks
 
 import (
-	"game_of_life/server/internal/grid"
+	"game_of_life/server/internal/grid/source"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -47,19 +47,19 @@ func (_m *MockSource) EXPECT() *MockSource_Expecter {
 }
 
 // Next provides a mock function for the type MockSource
-func (_mock *MockSource) Next() grid.Frame {
+func (_mock *MockSource) Next() source.Frame {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Next")
 	}
 
-	var r0 grid.Frame
-	if returnFunc, ok := ret.Get(0).(func() grid.Frame); ok {
+	var r0 source.Frame
+	if returnFunc, ok := ret.Get(0).(func() source.Frame); ok {
 		r0 = returnFunc()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(grid.Frame)
+			r0 = ret.Get(0).(source.Frame)
 		}
 	}
 	return r0
@@ -82,12 +82,12 @@ func (_c *MockSource_Next_Call) Run(run func()) *MockSource_Next_Call {
 	return _c
 }
 
-func (_c *MockSource_Next_Call) Return(frame grid.Frame) *MockSource_Next_Call {
+func (_c *MockSource_Next_Call) Return(frame source.Frame) *MockSource_Next_Call {
 	_c.Call.Return(frame)
 	return _c
 }
 
-func (_c *MockSource_Next_Call) RunAndReturn(run func() grid.Frame) *MockSource_Next_Call {
+func (_c *MockSource_Next_Call) RunAndReturn(run func() source.Frame) *MockSource_Next_Call {
 	_c.Call.Return(run)
 	return _c
 }

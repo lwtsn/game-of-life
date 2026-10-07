@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"game_of_life/server/api"
-	"game_of_life/server/internal/grid"
+	"game_of_life/server/internal/grid/random"
 	"go.uber.org/fx"
 )
 
@@ -19,7 +19,7 @@ type config struct {
 
 func module() fx.Option {
 	return fx.Options(
-		grid.Module,
+		random.Module,
 		api.Module,
 		fx.Provide(provideConfig, provideHTTP),
 		fx.Invoke(start),

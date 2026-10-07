@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"game_of_life/server/internal/grid/mocks"
+	"game_of_life/server/internal/grid/source/mocks"
 	"github.com/coder/websocket"
 	. "github.com/onsi/gomega"
 )

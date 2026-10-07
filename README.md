@@ -23,6 +23,6 @@ go test ./...
 go run ./cmd/server
 ```
 
-The server listens on `127.0.0.1:8080` and pushes a full 80 by 50 grid to `/ws` once a second. `cmd/server` composes the Fx modules. In `internal/grid`, `frame.go` is one grid and `random.go` is the source that fills it. `api/hub.go` is the socket. Each `module.go` only wires Fx.
+The server listens on `127.0.0.1:8080` and pushes a full 80 by 50 grid to `/ws` once a second. `internal/grid/source` defines the source. `internal/grid/random` fills the grid. `cmd/server` wires that implementation into the API.
 
 Regenerate mocks with `go tool mockery`.
