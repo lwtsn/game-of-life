@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http/httptest"
 	"strings"
-	"testing"
 	"time"
 
 	"game_of_life/server/api/users"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -29,85 +29,81 @@ func (f fakeFrame) ToJson() ([]byte, error) {
 	return source.Encode(f)
 }
 
-func testServer(t *testing.T, board *mocks.MockGrid, people users.Tracker) *httptest.Server {
-	t.Helper()
-	gin.SetMode(gin.TestMode)
+func testServer(board *mocks.MockGrid, people users.Tracker) *httptest.Server {
+	GinkgoHelper()
 	h := New(board, people)
 	engine := gin.New()
 	engine.GET("/ws", h.Serve)
 	srv := httptest.NewServer(engine)
-	t.Cleanup(srv.Close)
+	DeferCleanup(srv.Close)
 	return srv
 }
 
-func TestClientReceivesGrid(t *testing.T) {
-	g := NewWithT(t)
+var _ = Describe("websocket", func() {
+	It("sends the current board on connect", func() {
+		frame := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 1}}
+		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Current().Return(frame).Once()
+		people := users.New()
+		srv := testServer(board, people)
 
-	frame := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 1}}
-	board := mocks.NewMockGrid(t)
-	board.EXPECT().Current().Return(frame).Once()
-	people := users.New()
-	srv := testServer(t, board, people)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		DeferCleanup(cancel)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	t.Cleanup(cancel)
+		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(conn.CloseNow)
 
-	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
-	g.Expect(err).NotTo(HaveOccurred())
-	t.Cleanup(func() { conn.CloseNow() })
+		_, data, err := conn.Read(ctx)
+		Expect(err).NotTo(HaveOccurred())
 
-	_, data, err := conn.Read(ctx)
-	g.Expect(err).NotTo(HaveOccurred())
+		want, err := frame.ToJson()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(data).To(Equal(want))
+		Expect(people.Conns()).To(HaveLen(1))
+	})
 
-	want, err := frame.ToJson()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(data).To(Equal(want))
-	g.Expect(people.Conns()).To(HaveLen(1))
-}
+	It("forwards later board updates", func() {
+		first := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 0}}
+		second := fakeFrame{width: 2, height: 2, cells: []int{0, 1, 0, 0}}
+		secondJSON, err := second.ToJson()
+		Expect(err).NotTo(HaveOccurred())
 
-func TestRunForwardsBoardUpdates(t *testing.T) {
-	g := NewWithT(t)
+		updates := make(chan []byte, 1)
+		var stream <-chan []byte = updates
 
-	first := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 0}}
-	second := fakeFrame{width: 2, height: 2, cells: []int{0, 1, 0, 0}}
-	secondJSON, err := second.ToJson()
-	g.Expect(err).NotTo(HaveOccurred())
+		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Current().Return(first).Once()
+		board.EXPECT().Updates().Return(stream)
 
-	updates := make(chan []byte, 1)
-	var stream <-chan []byte = updates
+		people := users.New()
+		h := New(board, people)
+		engine := gin.New()
+		engine.GET("/ws", h.Serve)
+		srv := httptest.NewServer(engine)
+		DeferCleanup(srv.Close)
 
-	board := mocks.NewMockGrid(t)
-	board.EXPECT().Current().Return(first).Once()
-	board.EXPECT().Updates().Return(stream)
+		ctx, cancel := context.WithCancel(context.Background())
+		DeferCleanup(cancel)
+		go h.Run(ctx)
 
-	people := users.New()
-	h := New(board, people)
-	gin.SetMode(gin.TestMode)
-	engine := gin.New()
-	engine.GET("/ws", h.Serve)
-	srv := httptest.NewServer(engine)
-	t.Cleanup(srv.Close)
+		dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		DeferCleanup(dialCancel)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	go h.Run(ctx)
+		conn, _, err := websocket.Dial(dialCtx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(conn.CloseNow)
 
-	dialCtx, dialCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	t.Cleanup(dialCancel)
+		_, data, err := conn.Read(dialCtx)
+		Expect(err).NotTo(HaveOccurred())
+		want, err := first.ToJson()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(data).To(Equal(want))
 
-	conn, _, err := websocket.Dial(dialCtx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
-	g.Expect(err).NotTo(HaveOccurred())
-	t.Cleanup(func() { conn.CloseNow() })
+		updates <- secondJSON
 
-	_, data, err := conn.Read(dialCtx)
-	g.Expect(err).NotTo(HaveOccurred())
-	want, err := first.ToJson()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(data).To(Equal(want))
-
-	updates <- secondJSON
-
-	_, data, err = conn.Read(dialCtx)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(data).To(Equal(secondJSON))
-}
+		_, data, err = conn.Read(dialCtx)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(data).To(Equal(secondJSON))
+	})
+})
