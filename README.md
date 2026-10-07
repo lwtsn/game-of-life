@@ -23,7 +23,7 @@ go test ./...
 go run ./cmd/server
 ```
 
-The server listens on `127.0.0.1:8080`. Gin serves `GET /ws`, `POST /start`, and `POST /layout`. A client receives the current board on connect, then each update. The grid runs the simulation, one step a second, and `POST /start` calls that same start method. `POST /layout` takes a name and does not apply it yet. Connected users are keyed by IP. Reconnect and drop are stubs.
+The server listens on `127.0.0.1:8080`. `server/api/router.go` mounts the routes. `websocket` serves `GET /ws`. `controls` serves `POST /start` and `POST /layout`. `users` tracks one socket per IP. A client receives the current board on connect, then each update. The grid runs the simulation, one step a second, and `POST /start` calls that same start method. `POST /layout` takes a name and does not apply it yet. Reconnect and drop are stubs.
 
 The grid stores the current board. The source reads that board when it produces the next values. `internal/grid/random` is that source for now. Replace it with the life source when that source holds the game state.
 

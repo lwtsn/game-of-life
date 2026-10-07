@@ -1,4 +1,4 @@
-package api
+package controls
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *hub) start(c *gin.Context) {
+func (h *handler) Start(c *gin.Context) {
 	ctx := context.Background()
 	h.mu.Lock()
 	if h.ctx != nil {
