@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"game_of_life/server/internal/grid"
+	"game_of_life/server/internal/grid/source"
 	"github.com/coder/websocket"
 )
 
@@ -26,14 +26,14 @@ type wire struct {
 }
 
 type hub struct {
-	source grid.Source
+	source source.Source
 
 	mu    sync.Mutex
 	conns map[*websocket.Conn]struct{}
 	last  []byte
 }
 
-func newHub(source grid.Source) *hub {
+func newHub(source source.Source) *hub {
 	return &hub{
 		source: source,
 		conns:  make(map[*websocket.Conn]struct{}),
@@ -55,7 +55,7 @@ func (h *hub) Run(ctx context.Context) {
 	}
 }
 
-func marshalFrame(frame grid.Frame) ([]byte, error) {
+func marshalFrame(frame source.Frame) ([]byte, error) {
 	return json.Marshal(wire{
 		Width:  frame.Width(),
 		Height: frame.Height(),

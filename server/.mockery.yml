@@ -9,10 +9,10 @@ pkgname: '{{.SrcPackageName}}'
 recursive: false
 template: testify
 packages:
-  game_of_life/server/internal/grid:
+  game_of_life/server/internal/grid/source:
     interfaces:
       Source:
         config:
-          dir: internal/grid/mocks
+          dir: internal/grid/source/mocks
           filename: source.go
           pkgname: mocks
