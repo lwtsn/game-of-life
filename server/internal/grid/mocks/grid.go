@@ -82,6 +82,50 @@ func (_c *MockGrid_Advance_Call) RunAndReturn(run func()) *MockGrid_Advance_Call
 	return _c
 }
 
+// Clear provides a mock function for the type MockGrid
+func (_mock *MockGrid) Clear() bool {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Clear")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func() bool); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockGrid_Clear_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Clear'
+type MockGrid_Clear_Call struct {
+	*mock.Call
+}
+
+// Clear is a helper method to define mock.On call
+func (_e *MockGrid_Expecter) Clear() *MockGrid_Clear_Call {
+	return &MockGrid_Clear_Call{Call: _e.mock.On("Clear")}
+}
+
+func (_c *MockGrid_Clear_Call) Run(run func()) *MockGrid_Clear_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockGrid_Clear_Call) Return(b bool) *MockGrid_Clear_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockGrid_Clear_Call) RunAndReturn(run func() bool) *MockGrid_Clear_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Current provides a mock function for the type MockGrid
 func (_mock *MockGrid) Current() source.Frame {
 	ret := _mock.Called()

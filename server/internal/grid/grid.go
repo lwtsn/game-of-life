@@ -17,6 +17,7 @@ type Grid interface {
 	Updates() <-chan []byte
 	Place(x, y int, person user.User) bool
 	PlaceAll(points []Point, person user.User) bool
+	Clear() bool
 }
 
 // Point is a column and a row on the board.
@@ -116,6 +117,24 @@ func (g *grid) PlaceAll(points []Point, person user.User) bool {
 		cells[point.Y*width+point.X] = source.Cell{Alive: true, User: person}
 	}
 	g.current = snapshot{width: width, height: height, cells: cells}
+	return true
+}
+
+// Clear kills every cell and keeps the width and height.
+// It returns false when there is no board.
+func (g *grid) Clear() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.current == nil {
+		return false
+	}
+	width := g.current.Width()
+	height := g.current.Height()
+	g.current = snapshot{
+		width:  width,
+		height: height,
+		cells:  make([]source.Cell, width*height),
+	}
 	return true
 }
 

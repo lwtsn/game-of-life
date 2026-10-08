@@ -238,6 +238,76 @@ var _ = Describe("server", func() {
 		Expect(seen.Cells[5*80+4].Colour).To(Equal(person.Colour()))
 	})
 
+	It("clears the board and names the colour that asked", func() {
+		var srv *http.Server
+		app := fx.New(
+			module(),
+			fx.Replace(config{addr: "127.0.0.1:0"}),
+			fx.Replace(layout.Origin(func(int, int, int, int) (int, int) { return 4, 5 })),
+			fx.Populate(&srv),
+			fx.NopLogger,
+		)
+		Expect(app.Err()).NotTo(HaveOccurred())
+		Expect(app.Start(context.Background())).To(Succeed())
+		DeferCleanup(func() {
+			stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			Expect(app.Stop(stopCtx)).To(Succeed())
+		})
+
+		dialCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		DeferCleanup(cancel)
+
+		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
+		Expect(err).NotTo(HaveOccurred())
+		conn.SetReadLimit(1 << 20)
+		DeferCleanup(conn.CloseNow)
+
+		res, body := postPlace(srv, `{"pattern":"PATTERN_BLOCK"}`)
+		Expect(res.StatusCode).To(Equal(http.StatusOK))
+		Expect(string(body)).To(ContainSubstring(`"applied":true`))
+
+		person := user.New("127.0.0.1")
+		_ = readUntil(conn, dialCtx, func(frame socketFrame) bool {
+			if len(frame.Cells) != 80*50 {
+				return false
+			}
+			cell := frame.Cells[5*80+4]
+			return cell.Alive && cell.Colour == person.Colour()
+		})
+
+		Expect(conn.Write(dialCtx, websocket.MessageText, []byte(`{"reset":true}`))).To(Succeed())
+
+		var cleared bool
+		var notice string
+		for !cleared || notice == "" {
+			_, data, err := conn.Read(dialCtx)
+			Expect(err).NotTo(HaveOccurred())
+
+			var raw struct {
+				Width int          `json:"width"`
+				Cells []socketCell `json:"cells"`
+				Reset string       `json:"reset"`
+			}
+			Expect(json.Unmarshal(data, &raw)).To(Succeed())
+			if raw.Reset == person.Colour() {
+				notice = raw.Reset
+			}
+			if raw.Width == 80 && len(raw.Cells) == 80*50 {
+				alive := false
+				for _, cell := range raw.Cells {
+					if cell.Alive {
+						alive = true
+						break
+					}
+				}
+				if !alive {
+					cleared = true
+				}
+			}
+		}
+		Expect(notice).To(Equal(person.Colour()))
+	})
 })
 
 func postPlace(srv *http.Server, body string) (*http.Response, []byte) {

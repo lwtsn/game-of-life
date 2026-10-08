@@ -47,10 +47,15 @@ func (h *handler) Serve(c *gin.Context) {
 
 func (h *handler) handle(conn *websocket.Conn, data []byte) {
 	var body struct {
-		X *int `json:"x"`
-		Y *int `json:"y"`
+		X     *int `json:"x"`
+		Y     *int `json:"y"`
+		Reset bool `json:"reset"`
 	}
 	if err := json.Unmarshal(data, &body); err != nil {
+		return
+	}
+	if body.Reset {
+		h.reset(conn)
 		return
 	}
 	if body.X == nil || body.Y == nil {
@@ -69,6 +74,30 @@ func (h *handler) handle(conn *websocket.Conn, data []byte) {
 		return
 	}
 	h.writeAll(payload)
+}
+
+func (h *handler) reset(conn *websocket.Conn) {
+	person := h.userFor(conn)
+	if person == nil {
+		return
+	}
+	if !h.grid.Clear() {
+		return
+	}
+	payload, err := h.grid.Current().ToJson()
+	if err != nil {
+		log.Printf("grid json: %v", err)
+		return
+	}
+	h.writeAll(payload)
+	notice, err := json.Marshal(struct {
+		Reset string `json:"reset"`
+	}{Reset: person.Colour()})
+	if err != nil {
+		log.Printf("reset json: %v", err)
+		return
+	}
+	h.writeAll(notice)
 }
 
 func writeFrame(ctx context.Context, conn *websocket.Conn, payload []byte) error {
