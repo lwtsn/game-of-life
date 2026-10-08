@@ -7,7 +7,8 @@ export function connectBaseUrl() {
   const configured = import.meta.env.VITE_WS_URL
   if (configured) return configured.replace(/^ws/, 'http').replace(/\/ws$/, '')
   if (import.meta.env.MODE === 'test') return ''
-  return 'http://127.0.0.1:8080'
+  if (import.meta.env.DEV) return 'http://127.0.0.1:8080'
+  return window.location.origin
 }
 
 export async function placePattern(pattern: Pattern) {

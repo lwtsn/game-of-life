@@ -19,7 +19,8 @@ import (
 )
 
 type config struct {
-	addr string
+	addr    string
+	webRoot string
 }
 
 func module() fx.Option {
@@ -38,13 +39,16 @@ func provideConfig() config {
 	if addr == "" {
 		addr = "127.0.0.1:8080"
 	}
-	return config{addr: addr}
+	return config{addr: addr, webRoot: os.Getenv("WEB_ROOT")}
 }
 
 func provideHTTP(cfg config, handler api.Handler, rpc *connect.Server) *http.Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	handler.Register(engine)
+	if cfg.webRoot != "" {
+		mountWeb(engine, cfg.webRoot)
+	}
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, rpc)
 	mux.Handle("/", engine)
