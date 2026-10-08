@@ -24,6 +24,8 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Toad' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Glider' }))
     fireEvent.click(screen.getByRole('button', { name: 'Colour' }))
+    expect(screen.getByRole('dialog', { name: 'Choose a colour' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Colour wheel' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
   })
 })

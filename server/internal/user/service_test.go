@@ -61,22 +61,28 @@ var _ = Describe("service", func() {
 		Expect(svc.Colours()).To(Equal([]string{person.Colour()}))
 	})
 
-	It("rolls to the next colour nobody connected is using", func() {
+	It("sets the colour that was asked for", func() {
 		_, ok := svc.Join("player-one")
 		Expect(ok).To(BeTrue())
 		_, ok = svc.Join("player-two")
 		Expect(ok).To(BeTrue())
 
-		rolled, ok := svc.Recolour("player-one")
+		chosen, ok := svc.SetColour("player-one", "#e58700")
 		Expect(ok).To(BeTrue())
-		Expect(rolled.Colour()).To(Equal("#7AA0CE"))
+		Expect(chosen.Colour()).To(Equal("#E58700"))
 
 		current, ok := svc.ByID("player-one")
 		Expect(ok).To(BeTrue())
-		Expect(current.Colour()).To(Equal("#7AA0CE"))
-		Expect(svc.Colours()).To(Equal([]string{"#3F72AF", "#7AA0CE"}))
+		Expect(current.Colour()).To(Equal("#E58700"))
+		Expect(svc.Colours()).To(Equal([]string{"#3F72AF", "#E58700"}))
 
-		_, ok = svc.Recolour("missing01")
+		_, ok = svc.SetColour("player-one", "red")
+		Expect(ok).To(BeFalse())
+		kept, ok := svc.ByID("player-one")
+		Expect(ok).To(BeTrue())
+		Expect(kept.Colour()).To(Equal("#E58700"))
+
+		_, ok = svc.SetColour("missing01", "#112D4E")
 		Expect(ok).To(BeFalse())
 	})
 })

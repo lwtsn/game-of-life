@@ -50,10 +50,10 @@ func (h *handler) Serve(c *gin.Context) {
 
 func (h *handler) handle(conn *websocket.Conn, data []byte) {
 	var body struct {
-		X        *int `json:"x"`
-		Y        *int `json:"y"`
-		Reset    bool `json:"reset"`
-		Recolour bool `json:"recolour"`
+		X      *int   `json:"x"`
+		Y      *int   `json:"y"`
+		Reset  bool   `json:"reset"`
+		Colour string `json:"colour"`
 	}
 	if err := json.Unmarshal(data, &body); err != nil {
 		return
@@ -62,8 +62,8 @@ func (h *handler) handle(conn *websocket.Conn, data []byte) {
 		h.reset(conn)
 		return
 	}
-	if body.Recolour {
-		h.recolour(conn)
+	if body.Colour != "" {
+		h.chooseColour(conn, body.Colour)
 		return
 	}
 	if body.X == nil || body.Y == nil {
@@ -108,12 +108,12 @@ func (h *handler) reset(conn *websocket.Conn) {
 	h.writeAll(notice)
 }
 
-func (h *handler) recolour(conn *websocket.Conn) {
+func (h *handler) chooseColour(conn *websocket.Conn, colour string) {
 	person := h.userFor(conn)
 	if person == nil {
 		return
 	}
-	next, ok := h.svc.Recolour(person.ID())
+	next, ok := h.svc.SetColour(person.ID(), colour)
 	if !ok {
 		return
 	}

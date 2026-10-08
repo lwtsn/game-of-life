@@ -3,6 +3,7 @@ package user
 import (
 	"regexp"
 	"slices"
+	"strings"
 	"sync"
 )
 
@@ -11,7 +12,7 @@ type Service interface {
 	ByID(id string) (User, bool)
 	Join(id string) (User, bool)
 	Leave(id string)
-	Recolour(id string) (User, bool)
+	SetColour(id, colour string) (User, bool)
 	Colours() []string
 }
 
@@ -29,6 +30,7 @@ func NewService() Service {
 }
 
 var sessionID = regexp.MustCompile(`^[A-Za-z0-9-]{8,64}$`)
+var hexColour = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
 
 func validID(id string) bool {
 	return sessionID.MatchString(id)
@@ -88,35 +90,16 @@ func (s *service) Leave(id string) {
 	s.mu.Unlock()
 }
 
-// Recolour moves the session to the next palette colour nobody connected is using.
-func (s *service) Recolour(id string) (User, bool) {
+// SetColour stores a chosen #RRGGBB on a session the service already knows.
+func (s *service) SetColour(id, colour string) (User, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	person, ok := s.known[id]
-	if !ok {
+	if !ok || !hexColour.MatchString(colour) {
 		return nil, false
 	}
-	taken := make(map[string]struct{}, len(s.online))
-	for onlineID := range s.online {
-		taken[s.known[onlineID].colour] = struct{}{}
-	}
-	taken[person.colour] = struct{}{}
-	start := -1
-	for i, candidate := range palette {
-		if candidate == person.colour {
-			start = i
-			break
-		}
-	}
-	for step := 1; step <= len(palette); step++ {
-		candidate := palette[(start+step)%len(palette)]
-		if _, no := taken[candidate]; no {
-			continue
-		}
-		person.colour = candidate
-		s.known[id] = person
-		return person, true
-	}
+	person.colour = strings.ToUpper(colour)
+	s.known[id] = person
 	return person, true
 }
 

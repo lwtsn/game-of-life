@@ -263,9 +263,13 @@ var _ = Describe("websocket", func() {
 		Expect(notice.Reset).To(Equal("#112D4E"))
 	})
 
-	It("rolls a new colour for the session", func() {
+	It("sets the colour the session asked for", func() {
 		frame := fakeFrame{width: 2, height: 2, cells: make([]source.Cell, 4)}
 		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Current().Return(frame).Once()
+		board.EXPECT().Place(1, 0, mock.MatchedBy(func(got user.User) bool {
+			return got != nil && got.ID() == "player-one" && got.Colour() == "#E58700"
+		})).Return(true).Once()
 		board.EXPECT().Current().Return(frame).Once()
 		srv, h := testServer(board)
 
@@ -277,7 +281,7 @@ var _ = Describe("websocket", func() {
 		DeferCleanup(conn.CloseNow)
 		_ = readBoard(conn, ctx)
 
-		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"recolour":true}`))).To(Succeed())
+		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"colour":"#E58700"}`))).To(Succeed())
 
 		var you struct {
 			You string `json:"you"`
@@ -285,12 +289,15 @@ var _ = Describe("websocket", func() {
 		Eventually(func() string {
 			Expect(json.Unmarshal(readMessage(conn, ctx), &you)).To(Succeed())
 			return you.You
-		}, time.Second, 10*time.Millisecond).Should(Equal("#3F72AF"))
+		}, time.Second, 10*time.Millisecond).Should(Equal("#E58700"))
 
 		person, ok := h.svc.ByID("player-one")
 		Expect(ok).To(BeTrue())
-		Expect(person.Colour()).To(Equal("#3F72AF"))
-		Expect(h.svc.Colours()).To(Equal([]string{"#3F72AF"}))
+		Expect(person.Colour()).To(Equal("#E58700"))
+		Expect(h.svc.Colours()).To(Equal([]string{"#E58700"}))
+
+		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"x":1,"y":0}`))).To(Succeed())
+		Expect(readBoard(conn, ctx)).NotTo(BeEmpty())
 	})
 })
 
