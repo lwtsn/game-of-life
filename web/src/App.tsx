@@ -7,6 +7,7 @@ import { Presence } from './components/Presence.tsx'
 import { useGrid } from './hooks/useGrid.ts'
 import { usePlacePattern } from './hooks/usePlacePattern.ts'
 import { usePresence } from './hooks/usePresence.ts'
+import { usePresenceNotice } from './hooks/usePresenceNotice.ts'
 import { useResetNotice } from './hooks/useResetNotice.ts'
 import { useYou } from './hooks/useYou.ts'
 
@@ -16,6 +17,7 @@ function App() {
   const colours = usePresence()
   const you = useYou()
   useResetNotice()
+  usePresenceNotice()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<string | null>(null)
   const dock = useRef<HTMLDivElement>(null)

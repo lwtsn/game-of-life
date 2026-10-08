@@ -8,11 +8,22 @@ import (
 	"github.com/coder/websocket"
 )
 
-func (h *handler) track(r *http.Request, conn *websocket.Conn) {
+// track joins the session. The bool is true only for that session's first socket.
+func (h *handler) track(r *http.Request, conn *websocket.Conn) bool {
 	person, _ := h.svc.Join(r.URL.Query().Get("session"))
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	fresh := person != nil
+	if fresh {
+		for _, other := range h.clients {
+			if other != nil && other.ID() == person.ID() {
+				fresh = false
+				break
+			}
+		}
+	}
 	h.clients[conn] = person
-	h.mu.Unlock()
+	return fresh
 }
 
 func (h *handler) stored(conn *websocket.Conn) user.User {
@@ -63,7 +74,12 @@ func (h *handler) disconnect(conn *websocket.Conn) {
 		return
 	}
 	if person != nil && !stillHere {
+		colour := person.Colour()
+		if current, ok := h.svc.ByID(person.ID()); ok {
+			colour = current.Colour()
+		}
 		h.svc.Leave(person.ID())
+		h.announce("exited", colour)
 	}
 	_ = conn.Close(websocket.StatusGoingAway, "")
 	h.drop(conn)
