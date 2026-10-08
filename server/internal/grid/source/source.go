@@ -6,24 +6,30 @@ import (
 	"game_of_life/server/internal/user"
 )
 
-// Cell is one square. Alive is the Conway state. User is set when a person
-// placed the square, and left unset when the rules created it.
+// Cell is one square. Alive is the Conway state. Colour is stored on the
+// square itself. User is set when a person placed the square, and left unset
+// when the rules created it.
 type Cell struct {
-	Alive bool
-	User  user.User
+	Alive  bool
+	User   user.User
+	Colour string
 }
 
 func (c Cell) MarshalJSON() ([]byte, error) {
+	colour := c.Colour
 	body := struct {
 		Alive  bool   `json:"alive"`
-		IP     string `json:"ip,omitempty"`
+		ID     string `json:"id,omitempty"`
 		Colour string `json:"colour,omitempty"`
 	}{Alive: c.Alive}
 	if c.User != nil {
 		body.Alive = true
-		body.IP = c.User.IP()
-		body.Colour = c.User.Colour()
+		body.ID = c.User.ID()
+		if colour == "" {
+			colour = c.User.Colour()
+		}
 	}
+	body.Colour = colour
 	return json.Marshal(body)
 }
 

@@ -71,13 +71,13 @@ var _ = Describe("Grid", func() {
 		Expect(board.Place(0, 0, nil)).To(BeFalse())
 
 		got := board.Current().Cells()
-		Expect(got[1]).To(Equal(source.Cell{Alive: true, User: person}))
+		Expect(got[1]).To(Equal(source.Cell{Alive: true, User: person, Colour: person.Colour()}))
 		Expect(got[0].Alive).To(BeFalse())
 
 		payload, err := board.Current().ToJson()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(payload)).To(ContainSubstring(person.Colour()))
-		Expect(string(payload)).To(ContainSubstring(person.IP()))
+		Expect(string(payload)).To(ContainSubstring(person.ID()))
 	})
 
 	It("places the person on every cell of a shape", func() {
@@ -94,10 +94,11 @@ var _ = Describe("Grid", func() {
 		Expect(board.PlaceAll([]Point{{X: 0, Y: 0}}, nil)).To(BeFalse())
 
 		got := board.Current().Cells()
-		Expect(got[0]).To(Equal(source.Cell{Alive: true, User: person}))
-		Expect(got[1]).To(Equal(source.Cell{Alive: true, User: person}))
-		Expect(got[3]).To(Equal(source.Cell{Alive: true, User: person}))
-		Expect(got[4]).To(Equal(source.Cell{Alive: true, User: person}))
+		placed := source.Cell{Alive: true, User: person, Colour: person.Colour()}
+		Expect(got[0]).To(Equal(placed))
+		Expect(got[1]).To(Equal(placed))
+		Expect(got[3]).To(Equal(placed))
+		Expect(got[4]).To(Equal(placed))
 		Expect(got[2].Alive).To(BeFalse())
 	})
 

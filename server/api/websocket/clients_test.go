@@ -18,7 +18,7 @@ import (
 )
 
 var _ = Describe("clients", func() {
-	It("keeps every socket from the same address", func() {
+	It("keeps every socket for the same session", func() {
 		board := mocks.NewMockGrid(GinkgoT())
 		var api Handler
 		app := fx.New(
@@ -51,22 +51,22 @@ var _ = Describe("clients", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		DeferCleanup(cancel)
 
-		dial := func() *websocket.Conn {
+		dial := func(session string) *websocket.Conn {
 			GinkgoHelper()
-			conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+			conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/?session="+session, nil)
 			Expect(err).NotTo(HaveOccurred())
 			DeferCleanup(func() { conn.CloseNow() })
 			return conn
 		}
 
-		first := dial()
+		first := dial("player-one")
 		Eventually(func() int {
 			people.mu.Lock()
 			defer people.mu.Unlock()
 			return len(people.clients)
 		}, time.Second, 10*time.Millisecond).Should(Equal(1))
 
-		second := dial()
+		second := dial("player-one")
 		Eventually(func() int {
 			people.mu.Lock()
 			defer people.mu.Unlock()

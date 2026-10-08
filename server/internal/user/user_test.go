@@ -10,11 +10,10 @@ import (
 )
 
 var _ = Describe("Colour", func() {
-	It("follows the address, including an IPv4-mapped form", func() {
-		Expect(New("198.51.100.10").Colour()).To(Equal(New("198.51.100.10").Colour()))
-		Expect(New("::ffff:198.51.100.10").Colour()).To(Equal(New("198.51.100.10").Colour()))
-		Expect(New("::ffff:198.51.100.10").IP()).To(Equal("198.51.100.10"))
-		Expect(New("198.51.100.10").Colour()).NotTo(Equal(New("198.51.100.11").Colour()))
+	It("gives one id one colour", func() {
+		Expect(New("player-one").Colour()).To(Equal(New("player-one").Colour()))
+		Expect(New("player-one").ID()).To(Equal("player-one"))
+		Expect(New("player-one").Colour()).NotTo(Equal(New("player-two").Colour()))
 	})
 
 	It("gives ten addresses ten separated colours", func() {

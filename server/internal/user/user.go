@@ -1,28 +1,26 @@
 package user
 
-import (
-	"hash/fnv"
-	"net"
-)
+import "hash/fnv"
 
-// User is someone identified by an IP address.
+// User is someone the page can come back as. ID is the session kept in the
+// browser. Colour is the palette colour stored for that session.
 type User interface {
-	IP() string
+	ID() string
 	Colour() string
 }
 
 type user struct {
-	ip     string
+	id     string
 	colour string
 }
 
-func (u user) IP() string     { return u.ip }
+func (u user) ID() string     { return u.id }
 func (u user) Colour() string { return u.colour }
 
-// New builds the user for an address. IPv4-mapped IPv6 is the same user as the IPv4 form.
-func New(host string) User {
-	ip := canonicalIP(host)
-	return user{ip: ip, colour: colourFor(ip)}
+// New builds a person whose colour is a stable hash of the id.
+// The service picks a free palette colour instead when a session is first seen.
+func New(id string) User {
+	return user{id: id, colour: colourFor(id)}
 }
 
 // palette starts with the style-guide navy, blue, and tint. The rest are
@@ -93,19 +91,8 @@ var palette = []string{
 	"#A15436",
 }
 
-func colourFor(ip string) string {
+func colourFor(id string) string {
 	sum := fnv.New64a()
-	_, _ = sum.Write([]byte(ip))
+	_, _ = sum.Write([]byte(id))
 	return palette[sum.Sum64()%uint64(len(palette))]
-}
-
-func canonicalIP(host string) string {
-	parsed := net.ParseIP(host)
-	if parsed == nil {
-		return host
-	}
-	if v4 := parsed.To4(); v4 != nil {
-		return v4.String()
-	}
-	return parsed.String()
 }

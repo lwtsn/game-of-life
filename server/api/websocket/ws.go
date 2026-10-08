@@ -33,6 +33,9 @@ func (h *handler) Serve(c *gin.Context) {
 		return
 	}
 	h.broadcastColours()
+	if person := h.userFor(conn); person != nil {
+		h.tellColour(person.ID(), person.Colour())
+	}
 
 	for {
 		_, data, err := conn.Read(c.Request.Context())
@@ -47,15 +50,20 @@ func (h *handler) Serve(c *gin.Context) {
 
 func (h *handler) handle(conn *websocket.Conn, data []byte) {
 	var body struct {
-		X     *int `json:"x"`
-		Y     *int `json:"y"`
-		Reset bool `json:"reset"`
+		X        *int `json:"x"`
+		Y        *int `json:"y"`
+		Reset    bool `json:"reset"`
+		Recolour bool `json:"recolour"`
 	}
 	if err := json.Unmarshal(data, &body); err != nil {
 		return
 	}
 	if body.Reset {
 		h.reset(conn)
+		return
+	}
+	if body.Recolour {
+		h.recolour(conn)
 		return
 	}
 	if body.X == nil || body.Y == nil {
@@ -98,6 +106,38 @@ func (h *handler) reset(conn *websocket.Conn) {
 		return
 	}
 	h.writeAll(notice)
+}
+
+func (h *handler) recolour(conn *websocket.Conn) {
+	person := h.userFor(conn)
+	if person == nil {
+		return
+	}
+	next, ok := h.svc.Recolour(person.ID())
+	if !ok {
+		return
+	}
+	h.tellColour(next.ID(), next.Colour())
+	h.broadcastColours()
+}
+
+func (h *handler) tellColour(id, colour string) {
+	payload, err := json.Marshal(struct {
+		You string `json:"you"`
+	}{You: colour})
+	if err != nil {
+		log.Printf("colour json: %v", err)
+		return
+	}
+	for _, conn := range h.conns() {
+		person := h.stored(conn)
+		if person == nil || person.ID() != id {
+			continue
+		}
+		if err := h.send(context.Background(), conn, payload); err != nil {
+			h.disconnect(conn)
+		}
+	}
 }
 
 func writeFrame(ctx context.Context, conn *websocket.Conn, payload []byte) error {

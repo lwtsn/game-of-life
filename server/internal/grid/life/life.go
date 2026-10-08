@@ -44,18 +44,61 @@ func (life) Next(current source.Frame) source.Frame {
 }
 
 // nextCell applies the four rules to one square. A neighbour is one of the eight
-// squares that sit inside the board. A cell that survives keeps the person who
-// placed it. A birth is alive and has no person; averaging those colours comes later.
+// squares that sit inside the board. A cell that survives keeps the colour on
+// it and, when a person placed it, that person. A birth is alive, has no
+// person, and takes the average of the three colours around it.
 func nextCell(cells []source.Cell, width, height, x, y int) source.Cell {
 	n := liveNeighbours(cells, width, height, x, y)
 	current := cells[y*width+x]
 	if n == 3 || (current.Alive && n == 2) {
 		if current.Alive {
-			return current
+			return kept(current)
 		}
-		return source.Cell{Alive: true}
+		return born(cells, width, height, x, y)
 	}
 	return source.Cell{}
+}
+
+func kept(current source.Cell) source.Cell {
+	if current.Colour == "" && current.User != nil {
+		current.Colour = current.User.Colour()
+	}
+	return current
+}
+
+func born(cells []source.Cell, width, height, x, y int) source.Cell {
+	colours := make([]string, 0, 3)
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			nx, ny := x+dx, y+dy
+			if nx < 0 || ny < 0 || nx >= width || ny >= height {
+				continue
+			}
+			parent := cells[ny*width+nx]
+			if !parent.Alive {
+				continue
+			}
+			colour := parent.Colour
+			if colour == "" && parent.User != nil {
+				colour = parent.User.Colour()
+			}
+			if colour == "" {
+				return source.Cell{Alive: true}
+			}
+			colours = append(colours, colour)
+		}
+	}
+	if len(colours) != 3 {
+		return source.Cell{Alive: true}
+	}
+	mixed, err := BirthColour(colours[0], colours[1], colours[2])
+	if err != nil {
+		return source.Cell{Alive: true}
+	}
+	return source.Cell{Alive: true, Colour: mixed}
 }
 
 func liveNeighbours(cells []source.Cell, width, height, x, y int) int {

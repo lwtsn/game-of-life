@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"net"
 	"net/http"
 
 	"game_of_life/server/internal/user"
@@ -9,25 +8,29 @@ import (
 	"github.com/coder/websocket"
 )
 
-func clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
-}
-
 func (h *handler) track(r *http.Request, conn *websocket.Conn) {
-	person := h.svc.Join(clientIP(r))
+	person, _ := h.svc.Join(r.URL.Query().Get("session"))
 	h.mu.Lock()
 	h.clients[conn] = person
 	h.mu.Unlock()
 }
 
-func (h *handler) userFor(conn *websocket.Conn) user.User {
+func (h *handler) stored(conn *websocket.Conn) user.User {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.clients[conn]
+}
+
+func (h *handler) userFor(conn *websocket.Conn) user.User {
+	person := h.stored(conn)
+	if person == nil {
+		return nil
+	}
+	current, ok := h.svc.ByID(person.ID())
+	if !ok {
+		return person
+	}
+	return current
 }
 
 func (h *handler) conns() []*websocket.Conn {
@@ -47,9 +50,9 @@ func (h *handler) disconnect(conn *websocket.Conn) {
 		delete(h.clients, conn)
 	}
 	stillHere := false
-	if found {
+	if person != nil {
 		for _, other := range h.clients {
-			if other.IP() == person.IP() {
+			if other != nil && other.ID() == person.ID() {
 				stillHere = true
 				break
 			}
@@ -59,8 +62,8 @@ func (h *handler) disconnect(conn *websocket.Conn) {
 	if !found {
 		return
 	}
-	if !stillHere {
-		h.svc.Leave(person.IP())
+	if person != nil && !stillHere {
+		h.svc.Leave(person.ID())
 	}
 	_ = conn.Close(websocket.StatusGoingAway, "")
 	h.drop(conn)
