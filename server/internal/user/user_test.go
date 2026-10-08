@@ -1,4 +1,4 @@
-package users
+package user
 
 import (
 	"fmt"
@@ -11,9 +11,10 @@ import (
 
 var _ = Describe("Colour", func() {
 	It("follows the address, including an IPv4-mapped form", func() {
-		Expect(Colour("198.51.100.10")).To(Equal(Colour("198.51.100.10")))
-		Expect(Colour("::ffff:198.51.100.10")).To(Equal(Colour("198.51.100.10")))
-		Expect(Colour("198.51.100.10")).NotTo(Equal(Colour("198.51.100.11")))
+		Expect(New("198.51.100.10").Colour()).To(Equal(New("198.51.100.10").Colour()))
+		Expect(New("::ffff:198.51.100.10").Colour()).To(Equal(New("198.51.100.10").Colour()))
+		Expect(New("::ffff:198.51.100.10").IP()).To(Equal("198.51.100.10"))
+		Expect(New("198.51.100.10").Colour()).NotTo(Equal(New("198.51.100.11").Colour()))
 	})
 
 	It("gives ten addresses ten separated colours", func() {
@@ -43,7 +44,7 @@ var _ = Describe("Colour", func() {
 func addresses(n int) []string {
 	colours := make([]string, 0, n)
 	for i := 1; i <= n; i++ {
-		colours = append(colours, Colour(fmt.Sprintf("198.51.100.%d", i)))
+		colours = append(colours, New(fmt.Sprintf("198.51.100.%d", i)).Colour())
 	}
 	return colours
 }

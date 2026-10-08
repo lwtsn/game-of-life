@@ -14,6 +14,7 @@ import (
 	"game_of_life/server/api/websocket"
 	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/grid/source"
+	"game_of_life/server/internal/user/service"
 
 	coderws "github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
@@ -37,7 +38,7 @@ func (f fakeFrame) ToJson() ([]byte, error) {
 
 func testHandler(board *mocks.MockGrid) *handler {
 	return &handler{
-		sockets:  websocket.New(board, users.New()),
+		sockets:  websocket.New(board, users.New(service.New())),
 		controls: controls.New(board),
 	}
 }
