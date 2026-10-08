@@ -10,9 +10,10 @@ type ColourWheelProps = {
 }
 
 export function ColourWheel({ colour, onPreview, onPick }: ColourWheelProps) {
-  const parsed = hexToHsv(colour) ?? { h: 210, s: 0.64, v: 0.31 }
-  const [hsv, setHsv] = useState<Hsv>(parsed)
+  const parsed = hexToHsv(colour) ?? { h: 210, s: 0.64, v: 1 }
+  const [hsv, setHsv] = useState<Hsv>({ ...parsed, v: 1 })
   const [source, setSource] = useState(colour)
+  // held is the hex just sent. Leave the wheel alone until the server echoes it.
   const [held, setHeld] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dragging = useRef(false)

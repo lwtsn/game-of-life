@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	lifepb "game_of_life/server/gen/life/v1"
 )
 
 // Service remembers a colour for each session and the sessions that are connected.
@@ -29,8 +31,8 @@ func NewService() Service {
 	}
 }
 
-var sessionID = regexp.MustCompile(`^[A-Za-z0-9-]{8,64}$`)
-var hexColour = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
+var sessionID = regexp.MustCompile(lifepb.Default_Rules_SessionPattern)
+var hexColour = regexp.MustCompile(lifepb.Default_Rules_ColourPattern)
 
 func validID(id string) bool {
 	return sessionID.MatchString(id)

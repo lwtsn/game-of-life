@@ -3,6 +3,7 @@ package websocket
 import (
 	"net/http"
 
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/user"
 
 	"github.com/coder/websocket"
@@ -79,13 +80,7 @@ func (h *handler) disconnect(conn *websocket.Conn) {
 			colour = current.Colour()
 		}
 		h.svc.Leave(person.ID())
-		h.announce("exited", colour)
+		h.announce(lifepb.MessageType_MESSAGE_TYPE_EXITED, colour)
 	}
 	_ = conn.Close(websocket.StatusGoingAway, "")
-	h.drop(conn)
-	h.reconnect(conn)
 }
-
-// drop and reconnect are stubs. Who gets dropped, and how a client reconnects, comes later.
-func (h *handler) drop(*websocket.Conn)      {}
-func (h *handler) reconnect(*websocket.Conn) {}

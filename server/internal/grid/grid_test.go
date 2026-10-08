@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/grid/source/mocks"
 	"game_of_life/server/internal/user"
@@ -12,6 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/fx"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func gridFrom(src source.Source) Grid {
@@ -129,5 +131,121 @@ var _ = Describe("Grid", func() {
 		want, err := frame.ToJson()
 		Expect(err).NotTo(HaveOccurred())
 		Eventually(board.Updates(), time.Second, 10*time.Millisecond).Should(Receive(Equal(want)))
+	})
+
+	It("starts at one generation per second and keeps that pace", func() {
+		frame := snapshot{width: 1, height: 1, cells: []source.Cell{{}}}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(nil).Return(frame).Once()
+
+		board := gridFrom(src)
+		running, pace := board.Clock()
+		Expect(running).To(BeTrue())
+		Expect(pace).To(Equal(int(lifepb.PaceBound_PACE_BOUND_MIN)))
+		Expect(board.SetPace(0)).To(BeFalse())
+		Expect(board.SetPace(int(lifepb.PaceBound_PACE_BOUND_MAX) + 1)).To(BeFalse())
+		Expect(board.SetPace(20)).To(BeTrue())
+		running, pace = board.Clock()
+		Expect(running).To(BeTrue())
+		Expect(pace).To(Equal(20))
+	})
+
+	It("discards a queued board when stopped", func() {
+		frame := snapshot{width: 1, height: 1, cells: []source.Cell{{}}}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(mock.Anything).Return(frame)
+
+		board := gridFrom(src)
+		Expect(board.SetPace(int(lifepb.PaceBound_PACE_BOUND_MAX))).To(BeTrue())
+		ctx, cancel := context.WithCancel(context.Background())
+		DeferCleanup(cancel)
+		board.Start(ctx)
+
+		Eventually(board.Updates(), time.Second, time.Millisecond).Should(Receive())
+		board.SetRunning(false)
+		Consistently(board.Updates(), 200*time.Millisecond, 5*time.Millisecond).ShouldNot(Receive())
+	})
+
+	It("drops a queued generation when a cell is placed", func() {
+		frame := snapshot{width: 1, height: 1, cells: []source.Cell{{}}}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(nil).Return(frame).Once()
+
+		board := newGrid(src)
+		payload, err := board.Current().ToJson()
+		Expect(err).NotTo(HaveOccurred())
+		board.updates <- payload
+		board.queuedSeq = board.seq
+
+		Expect(board.Place(0, 0, user.New("player-one"))).To(BeTrue())
+		Expect(board.Live()).To(BeFalse())
+		Consistently(board.Updates(), 40*time.Millisecond, 5*time.Millisecond).ShouldNot(Receive())
+	})
+
+	It("does not step while stopped", func() {
+		frame := snapshot{width: 1, height: 1, cells: []source.Cell{{}}}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(nil).Return(frame).Once()
+
+		board := gridFrom(src)
+		board.SetRunning(false)
+		ctx, cancel := context.WithCancel(context.Background())
+		DeferCleanup(cancel)
+		board.Start(ctx)
+
+		Eventually(board.Updates(), time.Second, 10*time.Millisecond).Should(Receive())
+		Consistently(board.Updates(), 300*time.Millisecond, 10*time.Millisecond).ShouldNot(Receive())
+	})
+
+	It("steps at the pace it was given", func() {
+		frame := snapshot{width: 1, height: 1, cells: []source.Cell{{}}}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(mock.Anything).Return(frame)
+
+		board := gridFrom(src)
+		Expect(board.SetPace(20)).To(BeTrue())
+		ctx, cancel := context.WithCancel(context.Background())
+		DeferCleanup(cancel)
+		board.Start(ctx)
+
+		n := 0
+		Eventually(func() int {
+			select {
+			case <-board.Updates():
+				n++
+			default:
+			}
+			return n
+		}, time.Second, 5*time.Millisecond).Should(BeNumerically(">=", 5))
+	})
+
+	It("numbers each generation in order", func() {
+		frame := snapshot{width: 1, height: 1, cells: []source.Cell{{}}}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(mock.Anything).Return(frame)
+
+		board := gridFrom(src)
+		Expect(board.SetPace(20)).To(BeTrue())
+		ctx, cancel := context.WithCancel(context.Background())
+		DeferCleanup(cancel)
+		board.Start(ctx)
+
+		n := 0
+		var prev int32
+		Eventually(func() int {
+			select {
+			case payload := <-board.Updates():
+				var msg lifepb.ServerMessage
+				Expect(protojson.Unmarshal(payload, &msg)).To(Succeed())
+				if msg.GetFrame() == 0 {
+					return n
+				}
+				Expect(msg.GetFrame()).To(Equal(prev + 1))
+				prev = msg.GetFrame()
+				n++
+			default:
+			}
+			return n
+		}, time.Second, 5*time.Millisecond).Should(BeNumerically(">=", 3))
 	})
 })

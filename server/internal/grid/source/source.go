@@ -1,9 +1,10 @@
 package source
 
 import (
-	"encoding/json"
-
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/user"
+
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Cell is one square. Alive is the Conway state. Colour is stored on the
@@ -16,21 +17,21 @@ type Cell struct {
 }
 
 func (c Cell) MarshalJSON() ([]byte, error) {
+	return protojson.Marshal(cellMessage(c))
+}
+
+func cellMessage(c Cell) *lifepb.Cell {
 	colour := c.Colour
-	body := struct {
-		Alive  bool   `json:"alive"`
-		ID     string `json:"id,omitempty"`
-		Colour string `json:"colour,omitempty"`
-	}{Alive: c.Alive}
+	alive := c.Alive
+	id := ""
 	if c.User != nil {
-		body.Alive = true
-		body.ID = c.User.ID()
+		alive = true
+		id = c.User.ID()
 		if colour == "" {
 			colour = c.User.Colour()
 		}
 	}
-	body.Colour = colour
-	return json.Marshal(body)
+	return &lifepb.Cell{Alive: alive, Id: id, Colour: colour}
 }
 
 // Frame is one full grid.
@@ -41,16 +42,20 @@ type Frame interface {
 	ToJson() ([]byte, error)
 }
 
-// Encode is the JSON payload for a frame: width, height, and cells.
-func Encode(frame Frame) ([]byte, error) {
-	return json.Marshal(struct {
-		Width  int    `json:"width"`
-		Height int    `json:"height"`
-		Cells  []Cell `json:"cells"`
-	}{
-		Width:  frame.Width(),
-		Height: frame.Height(),
-		Cells:  frame.Cells(),
+// Encode is the board message: type, width, height, cells, and the generation.
+// generation is the clock's frame. Zero is the board before the first step.
+func Encode(frame Frame, generation int) ([]byte, error) {
+	cells := frame.Cells()
+	body := make([]*lifepb.Cell, len(cells))
+	for i, cell := range cells {
+		body[i] = cellMessage(cell)
+	}
+	return protojson.Marshal(&lifepb.ServerMessage{
+		Type:   lifepb.MessageType_MESSAGE_TYPE_BOARD,
+		Width:  int32(frame.Width()),
+		Height: int32(frame.Height()),
+		Cells:  body,
+		Frame:  int32(generation),
 	})
 }
 

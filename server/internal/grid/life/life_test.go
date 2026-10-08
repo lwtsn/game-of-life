@@ -3,6 +3,7 @@ package life
 import (
 	"encoding/json"
 
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/user"
 
@@ -31,9 +32,9 @@ var _ = Describe("life", func() {
 
 	It("starts from an empty 80 by 50 board", func() {
 		got := src.Next(nil)
-		Expect(got.Width()).To(Equal(80))
-		Expect(got.Height()).To(Equal(50))
-		Expect(got.Cells()).To(Equal(make([]source.Cell, 80*50)))
+		Expect(got.Width()).To(Equal(int(lifepb.GridSize_GRID_SIZE_WIDTH)))
+		Expect(got.Height()).To(Equal(int(lifepb.GridSize_GRID_SIZE_HEIGHT)))
+		Expect(got.Cells()).To(Equal(make([]source.Cell, int(lifepb.GridSize_GRID_SIZE_WIDTH)*int(lifepb.GridSize_GRID_SIZE_HEIGHT))))
 	})
 
 	DescribeTable("the next generation",

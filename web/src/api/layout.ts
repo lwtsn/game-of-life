@@ -3,7 +3,7 @@ import { createConnectTransport } from '@connectrpc/connect-web'
 import { LayoutService, type Pattern } from '../gen/life/v1/pattern_pb.js'
 import { sessionId } from './session.ts'
 
-export function connectBaseUrl() {
+function connectBaseUrl() {
   const configured = import.meta.env.VITE_WS_URL
   if (configured) return configured.replace(/^ws/, 'http').replace(/\/ws$/, '')
   if (import.meta.env.MODE === 'test') return ''
@@ -11,10 +11,10 @@ export function connectBaseUrl() {
   return window.location.origin
 }
 
-export async function placePattern(pattern: Pattern) {
+export async function placePattern(pattern: Pattern, x: number, y: number) {
   const baseUrl = connectBaseUrl()
   if (baseUrl === '') return
   const transport = createConnectTransport({ baseUrl })
   const client = createClient(LayoutService, transport)
-  await client.place({ pattern }, { headers: { 'X-Session': sessionId() } })
+  await client.place({ pattern, origin: { x, y } }, { headers: { 'X-Session': sessionId() } })
 }

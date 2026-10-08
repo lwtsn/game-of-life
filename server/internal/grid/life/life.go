@@ -1,10 +1,13 @@
 package life
 
-import "game_of_life/server/internal/grid/source"
+import (
+	lifepb "game_of_life/server/gen/life/v1"
+	"game_of_life/server/internal/grid/source"
+)
 
 const (
-	cols = 80
-	rows = 50
+	cols = int(lifepb.GridSize_GRID_SIZE_WIDTH)
+	rows = int(lifepb.GridSize_GRID_SIZE_HEIGHT)
 )
 
 // life is a source.Source. It returns the next board from the one it is given.
@@ -24,7 +27,7 @@ func (s snapshot) Width() int           { return s.width }
 func (s snapshot) Height() int          { return s.height }
 func (s snapshot) Cells() []source.Cell { return s.cells }
 func (s snapshot) ToJson() ([]byte, error) {
-	return source.Encode(s)
+	return source.Encode(s, 0)
 }
 
 func (life) Next(current source.Frame) source.Frame {

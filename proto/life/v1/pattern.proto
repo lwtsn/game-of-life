@@ -33,7 +33,10 @@ message Catalogue {
 
 // PlaceRequest asks the server to stamp one pattern.
 message PlaceRequest {
+  // pattern is the shape to stamp.
   Pattern pattern = 1;
+  // origin is the top-left cell of the stamp. When it is absent the server chooses one.
+  Offset origin = 2;
 }
 
 // PlaceResponse reports where the stamp landed.

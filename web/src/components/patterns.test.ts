@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cellAtPoint, cellsAlong } from './patterns.ts'
+import { cellAtPoint, cellNear, cellsAlong, stampOrigin } from './patterns.ts'
 
 describe('cellAtPoint', () => {
   it('returns the cell under the point', () => {
@@ -10,6 +10,19 @@ describe('cellAtPoint', () => {
   it('ignores the gap and the space outside the board', () => {
     expect(cellAtPoint(12, 6, 12)).toBeNull()
     expect(cellAtPoint(-1, 6, 12)).toBeNull()
+  })
+})
+
+describe('stampOrigin', () => {
+  it('keeps a shape inside the board', () => {
+    expect(stampOrigin(79, 49, 4, 4)).toEqual({ x: 76, y: 46 })
+    expect(stampOrigin(3, 2, 2, 2)).toEqual({ x: 3, y: 2 })
+  })
+})
+
+describe('cellNear', () => {
+  it('lands on a cell when the pointer is in the gap', () => {
+    expect(cellNear(12, 6, 12)).toBe(0)
   })
 })
 

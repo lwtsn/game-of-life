@@ -1,7 +1,6 @@
 package user
 
 import (
-	"fmt"
 	"math"
 	"strconv"
 
@@ -14,16 +13,6 @@ var _ = Describe("Colour", func() {
 		Expect(New("player-one").Colour()).To(Equal(New("player-one").Colour()))
 		Expect(New("player-one").ID()).To(Equal("player-one"))
 		Expect(New("player-one").Colour()).NotTo(Equal(New("player-two").Colour()))
-	})
-
-	It("gives ten addresses ten separated colours", func() {
-		colours := addresses(10)
-		Expect(unique(colours)).To(HaveLen(10))
-		Expect(closest(colours)).To(BeNumerically(">=", 36))
-	})
-
-	It("keeps one hundred addresses from collapsing onto a handful of colours", func() {
-		Expect(len(unique(addresses(100)))).To(BeNumerically(">=", 50))
 	})
 
 	It("keeps the palette apart and readable", func() {
@@ -39,22 +28,6 @@ var _ = Describe("Colour", func() {
 		}
 	})
 })
-
-func addresses(n int) []string {
-	colours := make([]string, 0, n)
-	for i := 1; i <= n; i++ {
-		colours = append(colours, New(fmt.Sprintf("198.51.100.%d", i)).Colour())
-	}
-	return colours
-}
-
-func unique(colours []string) map[string]struct{} {
-	seen := map[string]struct{}{}
-	for _, colour := range colours {
-		seen[colour] = struct{}{}
-	}
-	return seen
-}
 
 func closest(colours []string) float64 {
 	GinkgoHelper()

@@ -1,14 +1,14 @@
 type PresenceProps = {
-  colours: string[]
+  people: string[]
 }
 
-export function Presence({ colours }: PresenceProps) {
+export function Presence({ people }: PresenceProps) {
   return (
     <ul
       aria-label="Connected"
-      className="absolute top-4 right-4 z-40 flex max-h-48 max-w-56 flex-wrap content-start justify-end gap-1.5 overflow-y-auto"
+      className="flex max-h-12 max-w-[50vw] flex-wrap content-start gap-1.5 overflow-y-auto"
     >
-      {colours.map((colour, index) => (
+      {people.map((colour, index) => (
         <li
           key={`${colour}-${index}`}
           aria-hidden="true"

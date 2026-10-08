@@ -56,12 +56,14 @@ var _ = Describe("Catalogue", func() {
 	})
 
 	It("keeps a random origin inside the board", func() {
+		width := int(lifepb.GridSize_GRID_SIZE_WIDTH)
+		height := int(lifepb.GridSize_GRID_SIZE_HEIGHT)
 		for range 40 {
-			x, y := randomOrigin(80, 50, 4, 4)
+			x, y := randomOrigin(width, height, 4, 4)
 			Expect(x).To(BeNumerically(">=", 0))
 			Expect(y).To(BeNumerically(">=", 0))
-			Expect(x).To(BeNumerically("<=", 76))
-			Expect(y).To(BeNumerically("<=", 46))
+			Expect(x).To(BeNumerically("<=", width-4))
+			Expect(y).To(BeNumerically("<=", height-4))
 		}
 	})
 })

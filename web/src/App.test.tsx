@@ -14,29 +14,25 @@ describe('App', () => {
     render(<App />)
     const connected = screen.getByRole('list', { name: 'Connected' })
     expect(connected.querySelectorAll('li')).toHaveLength(0)
-    expect(screen.queryByText('Ada')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'Patterns' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Patterns' }))
     expect(screen.getByRole('button', { name: 'Block' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Blinker' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Glider' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Beacon' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Toad' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Glider' }))
     fireEvent.click(screen.getByRole('button', { name: 'Colour' }))
     expect(screen.getByRole('dialog', { name: 'Choose a colour' })).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Colour wheel' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
   })
 })
 
 describe('Presence', () => {
   it('draws one dot per connected colour', () => {
-    const colours = Array.from({ length: 100 }, (_, index) => {
+    const people = Array.from({ length: 100 }, (_, index) => {
       const hex = index.toString(16).padStart(6, '0')
       return `#${hex}`
     })
-    render(<Presence colours={colours} />)
+    render(<Presence people={people} />)
     expect(screen.getByRole('list', { name: 'Connected' }).querySelectorAll('li')).toHaveLength(100)
   })
 })
@@ -121,7 +117,6 @@ describe('Board', () => {
 
 describe('fitCell', () => {
   it('grows the 80 by 50 grid to fill a desktop frame', () => {
-    const cell = fitCell(1200, 760)
-    expect(cell).toBeGreaterThanOrEqual(10)
+    expect(fitCell(1200, 760)).toBe(14)
   })
 })

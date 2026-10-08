@@ -2,12 +2,14 @@ package websocket
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"time"
 
+	lifepb "game_of_life/server/gen/life/v1"
+
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func (h *handler) Serve(c *gin.Context) {
@@ -32,19 +34,20 @@ func (h *handler) Serve(c *gin.Context) {
 		h.disconnect(conn)
 		return
 	}
-	h.broadcastColours()
+	h.broadcastPeople()
 	if person := h.userFor(conn); person != nil {
 		h.tellColour(person.ID(), person.Colour())
 		if fresh {
-			h.announce("entered", person.Colour())
+			h.announce(lifepb.MessageType_MESSAGE_TYPE_ENTERED, person.Colour())
 		}
 	}
+	h.broadcastClock()
 
 	for {
 		_, data, err := conn.Read(c.Request.Context())
 		if err != nil {
 			h.disconnect(conn)
-			h.broadcastColours()
+			h.broadcastPeople()
 			return
 		}
 		h.handle(conn, data)
@@ -52,31 +55,39 @@ func (h *handler) Serve(c *gin.Context) {
 }
 
 func (h *handler) handle(conn *websocket.Conn, data []byte) {
-	var body struct {
-		X      *int   `json:"x"`
-		Y      *int   `json:"y"`
-		Reset  bool   `json:"reset"`
-		Colour string `json:"colour"`
-	}
-	if err := json.Unmarshal(data, &body); err != nil {
+	var msg lifepb.ClientMessage
+	if err := protojson.Unmarshal(data, &msg); err != nil {
 		return
 	}
-	if body.Reset {
-		h.reset(conn)
+	switch action := msg.GetAction().(type) {
+	case *lifepb.ClientMessage_ResetBoard:
+		if action.ResetBoard {
+			h.reset(conn)
+		}
 		return
-	}
-	if body.Colour != "" {
-		h.chooseColour(conn, body.Colour)
+	case *lifepb.ClientMessage_Colour:
+		if action.Colour != "" {
+			h.chooseColour(conn, action.Colour)
+		}
 		return
-	}
-	if body.X == nil || body.Y == nil {
+	case *lifepb.ClientMessage_Pace:
+		h.setPace(conn, action.Pace)
 		return
-	}
-	person := h.userFor(conn)
-	if person == nil {
+	case *lifepb.ClientMessage_Playback:
+		h.setRunning(conn, action.Playback)
 		return
-	}
-	if !h.grid.Place(*body.X, *body.Y, person) {
+	case *lifepb.ClientMessage_Point:
+		if action.Point == nil {
+			return
+		}
+		person := h.userFor(conn)
+		if person == nil {
+			return
+		}
+		if !h.grid.Place(int(action.Point.GetX()), int(action.Point.GetY()), person) {
+			return
+		}
+	default:
 		return
 	}
 	payload, err := h.grid.Current().ToJson()
@@ -92,7 +103,9 @@ func (h *handler) reset(conn *websocket.Conn) {
 	if person == nil {
 		return
 	}
+	h.grid.SetRunning(false)
 	if !h.grid.Clear() {
+		h.broadcastClock()
 		return
 	}
 	payload, err := h.grid.Current().ToJson()
@@ -101,14 +114,55 @@ func (h *handler) reset(conn *websocket.Conn) {
 		return
 	}
 	h.writeAll(payload)
-	notice, err := json.Marshal(struct {
-		Reset string `json:"reset"`
-	}{Reset: person.Colour()})
-	if err != nil {
-		log.Printf("reset json: %v", err)
+	h.announce(lifepb.MessageType_MESSAGE_TYPE_RESET, person.Colour())
+	h.broadcastClock()
+}
+
+func (h *handler) setPace(conn *websocket.Conn, pace int32) {
+	if h.userFor(conn) == nil || !knownPace(pace) {
 		return
 	}
-	h.writeAll(notice)
+	if !h.grid.SetPace(int(pace)) {
+		return
+	}
+	h.broadcastClock()
+}
+
+func (h *handler) setRunning(conn *websocket.Conn, playback lifepb.Playback) {
+	if h.userFor(conn) == nil {
+		return
+	}
+	switch playback {
+	case lifepb.Playback_PLAYBACK_RUNNING:
+		h.grid.SetRunning(true)
+	case lifepb.Playback_PLAYBACK_STOPPED:
+		h.grid.SetRunning(false)
+	default:
+		return
+	}
+	h.broadcastClock()
+}
+
+func knownPace(pace int32) bool {
+	return pace >= int32(lifepb.PaceBound_PACE_BOUND_MIN) && pace <= int32(lifepb.PaceBound_PACE_BOUND_MAX)
+}
+
+func (h *handler) broadcastClock() {
+	running, pace := h.grid.Clock()
+	playback := lifepb.Playback_PLAYBACK_STOPPED
+	if running {
+		playback = lifepb.Playback_PLAYBACK_RUNNING
+	}
+	payload, err := protojson.Marshal(&lifepb.ServerMessage{
+		Type:     lifepb.MessageType_MESSAGE_TYPE_CLOCK,
+		Pace:     int32(pace),
+		Playback: playback,
+	})
+	if err != nil {
+		log.Printf("clock json: %v", err)
+		return
+	}
+	h.writeAll(payload)
 }
 
 func (h *handler) chooseColour(conn *websocket.Conn, colour string) {
@@ -121,14 +175,15 @@ func (h *handler) chooseColour(conn *websocket.Conn, colour string) {
 		return
 	}
 	h.tellColour(next.ID(), next.Colour())
-	h.broadcastColours()
+	h.broadcastPeople()
+	h.announce(lifepb.MessageType_MESSAGE_TYPE_CHANGED, next.Colour())
 }
 
-func (h *handler) announce(field, colour string) {
+func (h *handler) announce(kind lifepb.MessageType, colour string) {
 	if colour == "" {
 		return
 	}
-	payload, err := json.Marshal(map[string]string{field: colour})
+	payload, err := protojson.Marshal(&lifepb.ServerMessage{Type: kind, Colour: colour})
 	if err != nil {
 		log.Printf("presence json: %v", err)
 		return
@@ -137,9 +192,10 @@ func (h *handler) announce(field, colour string) {
 }
 
 func (h *handler) tellColour(id, colour string) {
-	payload, err := json.Marshal(struct {
-		You string `json:"you"`
-	}{You: colour})
+	payload, err := protojson.Marshal(&lifepb.ServerMessage{
+		Type:   lifepb.MessageType_MESSAGE_TYPE_YOU,
+		Colour: colour,
+	})
 	if err != nil {
 		log.Printf("colour json: %v", err)
 		return

@@ -3,13 +3,14 @@ package life
 import (
 	"testing"
 
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/grid/source"
 
 	"go.uber.org/fx"
 )
 
 func BenchmarkNext80x50(b *testing.B) {
-	benchmarkNext(b, 80, 50)
+	benchmarkNext(b, int(lifepb.GridSize_GRID_SIZE_WIDTH), int(lifepb.GridSize_GRID_SIZE_HEIGHT))
 }
 
 func BenchmarkNextMillion(b *testing.B) {

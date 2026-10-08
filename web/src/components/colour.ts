@@ -1,6 +1,6 @@
-export type Hsv = { h: number; s: number; v: number }
+import { isHex } from '../api/hex.ts'
 
-const hexColour = /^#([0-9A-Fa-f]{6})$/
+export type Hsv = { h: number; s: number; v: number }
 
 export function hsvToHex(h: number, s: number, v: number) {
   const channel = v * s
@@ -33,9 +33,8 @@ export function hsvToHex(h: number, s: number, v: number) {
 }
 
 export function hexToHsv(hex: string): Hsv | null {
-  const found = hexColour.exec(hex)
-  if (!found) return null
-  const value = Number.parseInt(found[1], 16)
+  if (!isHex(hex)) return null
+  const value = Number.parseInt(hex.slice(1), 16)
   const red = ((value >> 16) & 255) / 255
   const green = ((value >> 8) & 255) / 255
   const blue = (value & 255) / 255

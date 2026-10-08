@@ -43,6 +43,10 @@ func (h *handler) Place(ctx context.Context, req *lifepb.PlaceRequest) (*lifepb.
 		return nil, connect.NewError(connect.CodeInvalidArgument, "pattern does not fit the board")
 	}
 	x, y := h.origin(frame.Width(), frame.Height(), shape.Width, shape.Height)
+	if req.GetOrigin() != nil {
+		x = int(req.GetOrigin().GetX())
+		y = int(req.GetOrigin().GetY())
+	}
 	points := make([]grid.Point, len(shape.Cells))
 	for i, cell := range shape.Cells {
 		points[i] = grid.Point{X: x + cell.X, Y: y + cell.Y}

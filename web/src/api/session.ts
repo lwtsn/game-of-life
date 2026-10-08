@@ -1,5 +1,8 @@
+import { create } from '@bufbuild/protobuf'
+import { RulesSchema } from '../gen/life/v1/rules_pb.js'
+
 const storageKey = 'gol.session'
-const sessionPattern = /^[A-Za-z0-9-]{8,64}$/
+const sessionPattern = new RegExp(create(RulesSchema).sessionPattern)
 
 export function sessionId(): string {
   const existing = window.localStorage.getItem(storageKey)

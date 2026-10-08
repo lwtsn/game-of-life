@@ -2,13 +2,11 @@ package api
 
 import (
 	"context"
-	"encoding/json"
-	"io"
-	"net/http"
 	"net/http/httptest"
 	"strings"
 	"time"
 
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/grid/source"
@@ -18,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/stretchr/testify/mock"
 	"go.uber.org/fx"
 )
 
@@ -32,7 +29,7 @@ func (f fakeFrame) Width() int           { return f.width }
 func (f fakeFrame) Height() int          { return f.height }
 func (f fakeFrame) Cells() []source.Cell { return f.cells }
 func (f fakeFrame) ToJson() ([]byte, error) {
-	return source.Encode(f)
+	return source.Encode(f, 0)
 }
 
 func handlerFrom(board grid.Grid) Handler {
@@ -54,29 +51,13 @@ var _ = Describe("router", func() {
 		frame := fakeFrame{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {Alive: true}}}
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
-		board.EXPECT().Start(mock.Anything).Once()
+		board.EXPECT().Clock().Return(true, int(lifepb.PaceBound_PACE_BOUND_MIN)).Once()
 
 		h := handlerFrom(board)
 		engine := gin.New()
 		h.Register(engine)
 		srv := httptest.NewServer(engine)
 		DeferCleanup(srv.Close)
-
-		res, err := http.Post(srv.URL+"/start", "application/json", nil)
-		Expect(err).NotTo(HaveOccurred())
-		res.Body.Close()
-		Expect(res.StatusCode).To(Equal(http.StatusNoContent))
-
-		res, err = http.Post(srv.URL+"/layout", "application/json", strings.NewReader(`{"name":"glider"}`))
-		Expect(err).NotTo(HaveOccurred())
-		defer res.Body.Close()
-		Expect(res.StatusCode).To(Equal(http.StatusOK))
-		body, err := io.ReadAll(res.Body)
-		Expect(err).NotTo(HaveOccurred())
-		var got map[string]any
-		Expect(json.Unmarshal(body, &got)).To(Succeed())
-		Expect(got["layout"]).To(Equal("glider"))
-		Expect(got["applied"]).To(Equal(false))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		DeferCleanup(cancel)

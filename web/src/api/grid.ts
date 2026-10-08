@@ -1,7 +1,9 @@
-export const COLS = 80
-export const ROWS = 50
+import { fromJson, type JsonValue } from '@bufbuild/protobuf'
+import { GridSize, ServerMessageSchema, type Cell as ProtoCell } from '../gen/life/v1/socket_pb.js'
+import { isHex } from './hex.ts'
 
-const hex = /^#[0-9A-Fa-f]{6}$/
+export const COLS = GridSize.WIDTH
+export const ROWS = GridSize.HEIGHT
 
 export type Cell = {
   alive: boolean
@@ -15,33 +17,29 @@ export type GridFrame = {
   cells: Cell[]
 }
 
-function readCell(value: unknown): Cell | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+function readCell(cell: ProtoCell): Cell | null {
+  if (cell.colour !== '' && !isHex(cell.colour)) return null
 
-  const raw = value as Record<string, unknown>
-  if (typeof raw.alive !== 'boolean') return null
-
-  const cell: Cell = { alive: raw.alive }
-  if ('id' in raw) {
-    if (typeof raw.id !== 'string' || raw.id.length === 0) return null
-    cell.id = raw.id
-  }
-  if ('colour' in raw) {
-    if (typeof raw.colour !== 'string' || !hex.test(raw.colour)) return null
-    cell.colour = raw.colour
-  }
-  return cell
+  const read: Cell = { alive: cell.alive }
+  if (cell.id !== '') read.id = cell.id
+  if (cell.colour !== '') read.colour = cell.colour
+  return read
 }
 
 export function readGridFrame(value: unknown): GridFrame | null {
-  if (typeof value !== 'object' || value === null) return null
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
 
-  const frame = value as { width?: unknown; height?: unknown; cells?: unknown }
-  if (frame.width !== COLS || frame.height !== ROWS) return null
-  if (!Array.isArray(frame.cells) || frame.cells.length !== COLS * ROWS) return null
+  let message
+  try {
+    message = fromJson(ServerMessageSchema, value as JsonValue)
+  } catch {
+    return null
+  }
+  if (message.width !== COLS || message.height !== ROWS) return null
+  if (message.cells.length !== COLS * ROWS) return null
 
   const cells: Cell[] = []
-  for (const item of frame.cells) {
+  for (const item of message.cells) {
     const cell = readCell(item)
     if (!cell) return null
     cells.push(cell)

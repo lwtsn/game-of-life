@@ -23,10 +23,8 @@ func New(id string) User {
 	return user{id: id, colour: colourFor(id)}
 }
 
-// palette starts with the style-guide navy, blue, and tint. The rest are
-// variants spread around the wheel. Every pair is far enough apart to tell
-// apart, and every entry still reads on the mist cells. A hundred addresses
-// share this set. Three colours cannot.
+// palette starts with navy, blue, and tint. The rest are spread around the
+// wheel. Every pair is far enough apart to tell apart on the mist cells.
 var palette = []string{
 	"#112D4E",
 	"#3F72AF",
