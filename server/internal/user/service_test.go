@@ -3,11 +3,18 @@ package user
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/fx"
 )
 
 var _ = Describe("service", func() {
+	var svc Service
+
+	BeforeEach(func() {
+		app := fx.New(Module, fx.Populate(&svc), fx.NopLogger)
+		Expect(app.Err()).NotTo(HaveOccurred())
+	})
+
 	It("returns the colour for an IP", func() {
-		svc := NewService()
 		person := svc.ByIP("::ffff:198.51.100.10")
 
 		Expect(person.IP()).To(Equal("198.51.100.10"))
@@ -17,7 +24,6 @@ var _ = Describe("service", func() {
 	})
 
 	It("keeps one user per address", func() {
-		svc := NewService()
 		first := svc.Join("::ffff:198.51.100.10")
 		again := svc.Join("198.51.100.10")
 

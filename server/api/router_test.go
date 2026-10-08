@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"game_of_life/server/api/controls"
-	"game_of_life/server/api/websocket"
+	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/user"
@@ -20,36 +19,44 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/fx"
 )
 
 type fakeFrame struct {
 	width  int
 	height int
-	cells  []int
+	cells  []source.Cell
 }
 
-func (f fakeFrame) Width() int   { return f.width }
-func (f fakeFrame) Height() int  { return f.height }
-func (f fakeFrame) Cells() []int { return f.cells }
+func (f fakeFrame) Width() int           { return f.width }
+func (f fakeFrame) Height() int          { return f.height }
+func (f fakeFrame) Cells() []source.Cell { return f.cells }
 func (f fakeFrame) ToJson() ([]byte, error) {
 	return source.Encode(f)
 }
 
-func testHandler(board *mocks.MockGrid) *handler {
-	return &handler{
-		sockets:  websocket.New(board, user.NewService()),
-		controls: controls.New(board),
-	}
+func handlerFrom(board grid.Grid) Handler {
+	GinkgoHelper()
+	var h Handler
+	app := fx.New(
+		user.Module,
+		Module,
+		fx.Provide(func() grid.Grid { return board }),
+		fx.Populate(&h),
+		fx.NopLogger,
+	)
+	Expect(app.Err()).NotTo(HaveOccurred())
+	return h
 }
 
 var _ = Describe("router", func() {
 	It("connects the downstream routes", func() {
-		frame := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 1}}
+		frame := fakeFrame{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {Alive: true}}}
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
 		board.EXPECT().Start(mock.Anything).Once()
 
-		h := testHandler(board)
+		h := handlerFrom(board)
 		engine := gin.New()
 		h.Register(engine)
 		srv := httptest.NewServer(engine)

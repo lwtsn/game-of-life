@@ -21,12 +21,12 @@ type random struct {
 type snapshot struct {
 	width  int
 	height int
-	cells  []int
+	cells  []source.Cell
 }
 
-func (s snapshot) Width() int   { return s.width }
-func (s snapshot) Height() int  { return s.height }
-func (s snapshot) Cells() []int { return s.cells }
+func (s snapshot) Width() int           { return s.width }
+func (s snapshot) Height() int          { return s.height }
+func (s snapshot) Cells() []source.Cell { return s.cells }
 func (s snapshot) ToJson() ([]byte, error) {
 	return source.Encode(s)
 }
@@ -40,10 +40,10 @@ func newRandomSeed(seed int64) *random {
 }
 
 func (r *random) Next(source.Frame) source.Frame {
-	cells := make([]int, cols*rows)
+	cells := make([]source.Cell, cols*rows)
 	for i := range cells {
 		if r.rng.IntN(6) == 0 {
-			cells[i] = 1
+			cells[i] = source.Cell{Alive: true}
 		}
 	}
 	return snapshot{width: cols, height: rows, cells: cells}
