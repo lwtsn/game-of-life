@@ -23,10 +23,10 @@ func benchmarkNext(b *testing.B, width, height int) {
 	if err := app.Err(); err != nil {
 		b.Fatal(err)
 	}
-	cells := make([]int, width*height)
+	cells := make([]source.Cell, width*height)
 	for i := range cells {
 		if i%7 == 0 {
-			cells[i] = 1
+			cells[i] = source.Cell{Alive: true}
 		}
 	}
 	current := snapshot{width: width, height: height, cells: cells}

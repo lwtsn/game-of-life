@@ -8,13 +8,28 @@ import (
 	"net/http/httptest"
 	"strings"
 
+	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/mocks"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/fx"
 )
+
+func handlerFrom(board grid.Grid) Handler {
+	GinkgoHelper()
+	var h Handler
+	app := fx.New(
+		Module,
+		fx.Provide(func() grid.Grid { return board }),
+		fx.Populate(&h),
+		fx.NopLogger,
+	)
+	Expect(app.Err()).NotTo(HaveOccurred())
+	return h
+}
 
 var _ = Describe("controls", func() {
 	It("starts the grid with the bound context", func() {
@@ -26,7 +41,7 @@ var _ = Describe("controls", func() {
 			return got == ctx
 		})).Once()
 
-		h := New(board)
+		h := handlerFrom(board)
 		h.Bind(ctx)
 
 		engine := gin.New()
@@ -42,7 +57,7 @@ var _ = Describe("controls", func() {
 
 	It("accepts a layout name and does not apply it", func() {
 		board := mocks.NewMockGrid(GinkgoT())
-		h := New(board)
+		h := handlerFrom(board)
 
 		engine := gin.New()
 		engine.POST("/layout", h.Layout)

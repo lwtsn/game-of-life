@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/user"
@@ -15,24 +16,39 @@ import (
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/fx"
 )
 
 type fakeFrame struct {
 	width  int
 	height int
-	cells  []int
+	cells  []source.Cell
 }
 
-func (f fakeFrame) Width() int   { return f.width }
-func (f fakeFrame) Height() int  { return f.height }
-func (f fakeFrame) Cells() []int { return f.cells }
+func (f fakeFrame) Width() int           { return f.width }
+func (f fakeFrame) Height() int          { return f.height }
+func (f fakeFrame) Cells() []source.Cell { return f.cells }
 func (f fakeFrame) ToJson() ([]byte, error) {
 	return source.Encode(f)
 }
 
-func testServer(board *mocks.MockGrid, svc user.Service) (*httptest.Server, *handler) {
+func openHandler(board grid.Grid) *handler {
 	GinkgoHelper()
-	h := New(board, svc).(*handler)
+	var api Handler
+	app := fx.New(
+		user.Module,
+		Module,
+		fx.Provide(func() grid.Grid { return board }),
+		fx.Populate(&api),
+		fx.NopLogger,
+	)
+	Expect(app.Err()).NotTo(HaveOccurred())
+	return api.(*handler)
+}
+
+func testServer(board *mocks.MockGrid) (*httptest.Server, *handler) {
+	GinkgoHelper()
+	h := openHandler(board)
 	engine := gin.New()
 	engine.GET("/ws", h.Serve)
 	srv := httptest.NewServer(engine)
@@ -42,10 +58,10 @@ func testServer(board *mocks.MockGrid, svc user.Service) (*httptest.Server, *han
 
 var _ = Describe("websocket", func() {
 	It("sends the current board on connect", func() {
-		frame := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 1}}
+		frame := fakeFrame{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {Alive: true}}}
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
-		srv, h := testServer(board, user.NewService())
+		srv, h := testServer(board)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		DeferCleanup(cancel)
@@ -64,12 +80,12 @@ var _ = Describe("websocket", func() {
 			Colours []string `json:"colours"`
 		}
 		Expect(json.Unmarshal(readMessage(conn, ctx), &presence)).To(Succeed())
-		Expect(presence.Colours).To(Equal([]string{user.NewService().Colour("127.0.0.1")}))
+		Expect(presence.Colours).To(Equal([]string{h.svc.Colour("127.0.0.1")}))
 	})
 
 	It("forwards later board updates", func() {
-		first := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 0}}
-		second := fakeFrame{width: 2, height: 2, cells: []int{0, 1, 0, 0}}
+		first := fakeFrame{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {}}}
+		second := fakeFrame{width: 2, height: 2, cells: []source.Cell{{}, {Alive: true}, {}, {}}}
 		secondJSON, err := second.ToJson()
 		Expect(err).NotTo(HaveOccurred())
 
@@ -80,7 +96,7 @@ var _ = Describe("websocket", func() {
 		board.EXPECT().Current().Return(first).Once()
 		board.EXPECT().Updates().Return(stream)
 
-		h := New(board, user.NewService())
+		h := openHandler(board)
 		engine := gin.New()
 		engine.GET("/ws", h.Serve)
 		srv := httptest.NewServer(engine)
@@ -106,6 +122,7 @@ var _ = Describe("websocket", func() {
 
 		Expect(readBoard(conn, dialCtx)).To(Equal(secondJSON))
 	})
+
 })
 
 func readMessage(conn *websocket.Conn, ctx context.Context) []byte {

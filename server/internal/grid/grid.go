@@ -19,12 +19,12 @@ type Grid interface {
 type snapshot struct {
 	width  int
 	height int
-	cells  []int
+	cells  []source.Cell
 }
 
-func (s snapshot) Width() int   { return s.width }
-func (s snapshot) Height() int  { return s.height }
-func (s snapshot) Cells() []int { return s.cells }
+func (s snapshot) Width() int           { return s.width }
+func (s snapshot) Height() int          { return s.height }
+func (s snapshot) Cells() []source.Cell { return s.cells }
 func (s snapshot) ToJson() ([]byte, error) {
 	return source.Encode(s)
 }
@@ -60,7 +60,7 @@ func (g *grid) Advance() {
 	g.current = snapshot{
 		width:  next.Width(),
 		height: next.Height(),
-		cells:  append([]int(nil), next.Cells()...),
+		cells:  append([]source.Cell(nil), next.Cells()...),
 	}
 }
 

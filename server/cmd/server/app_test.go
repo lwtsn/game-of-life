@@ -12,10 +12,16 @@ import (
 	"go.uber.org/fx"
 )
 
+type socketCell struct {
+	Alive  bool   `json:"alive"`
+	IP     string `json:"ip"`
+	Colour string `json:"colour"`
+}
+
 type socketFrame struct {
-	Width  int   `json:"width"`
-	Height int   `json:"height"`
-	Cells  []int `json:"cells"`
+	Width  int          `json:"width"`
+	Height int          `json:"height"`
+	Cells  []socketCell `json:"cells"`
 }
 
 var _ = Describe("server", func() {
@@ -32,7 +38,7 @@ var _ = Describe("server", func() {
 		Expect(app.Stop(ctx)).To(Succeed())
 	})
 
-	It("serves a live grid", func() {
+	It("serves the board", func() {
 		var srv *http.Server
 		app := fx.New(
 			module(),
@@ -56,13 +62,15 @@ var _ = Describe("server", func() {
 
 		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
 		Expect(err).NotTo(HaveOccurred())
+		conn.SetReadLimit(1 << 20)
 		DeferCleanup(conn.CloseNow)
 
 		first := readSocketFrame(conn, dialCtx)
 		second := readSocketFrame(conn, dialCtx)
 		expectFullGrid(first)
 		expectFullGrid(second)
-		Expect(first.Cells).NotTo(Equal(second.Cells))
+		Expect(first.Cells).To(Equal(make([]socketCell, 80*50)))
+		Expect(second.Cells).To(Equal(first.Cells))
 	})
 })
 
@@ -86,9 +94,4 @@ func expectFullGrid(frame socketFrame) {
 	Expect(frame.Width).To(Equal(80))
 	Expect(frame.Height).To(Equal(50))
 	Expect(frame.Cells).To(HaveLen(80 * 50))
-	Expect(frame.Cells).To(ContainElement(0))
-	Expect(frame.Cells).To(ContainElement(1))
-	for _, cell := range frame.Cells {
-		Expect(cell).To(BeElementOf(0, 1))
-	}
 }

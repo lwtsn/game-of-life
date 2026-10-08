@@ -10,7 +10,7 @@ import (
 
 	"game_of_life/server/api"
 	"game_of_life/server/internal/grid"
-	"game_of_life/server/internal/grid/random"
+	"game_of_life/server/internal/grid/life"
 	"game_of_life/server/internal/user"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
@@ -22,8 +22,7 @@ type config struct {
 
 func module() fx.Option {
 	return fx.Options(
-		// random.Module is the source for now. A life source replaces it and can take game state.
-		random.Module,
+		life.Module,
 		grid.Module,
 		user.Module,
 		api.Module,

@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Cell } from '../api/grid.ts'
 import { boardSize, COLS, fitCell, GAP, ROWS } from './patterns.ts'
 
 const DEAD = '#DBE2EF'
 const ALIVE = '#112D4E'
 const GAP_COLOR = '#F9F7F7'
 
-function draw(
-  context: CanvasRenderingContext2D,
-  cell: number,
-  cells: number[] | null,
-) {
+function draw(context: CanvasRenderingContext2D, cell: number, cells: Cell[] | null) {
   const { width, height } = boardSize(cell)
   context.fillStyle = GAP_COLOR
   context.fillRect(0, 0, width, height)
@@ -17,15 +14,24 @@ function draw(
   const step = cell + GAP
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
-      const alive = cells !== null && cells[y * COLS + x] === 1
-      context.fillStyle = alive ? ALIVE : DEAD
+      const square = cells?.[y * COLS + x]
+      context.fillStyle = square?.alive ? (square.colour ?? ALIVE) : DEAD
       context.fillRect(x * step, y * step, cell, cell)
     }
   }
 }
 
+function placedIndexes(cells: Cell[] | null) {
+  if (!cells) return []
+  const marked: number[] = []
+  cells.forEach((square, index) => {
+    if (square.colour) marked.push(index)
+  })
+  return marked
+}
+
 type BoardProps = {
-  cells: number[] | null
+  cells: Cell[] | null
 }
 
 export function Board({ cells }: BoardProps) {
@@ -39,10 +45,8 @@ export function Board({ cells }: BoardProps) {
 
     const measure = () => {
       const style = getComputedStyle(frame)
-      const padX =
-        parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
-      const padY =
-        parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+      const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+      const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
       const width = frame.clientWidth - padX
       const height = frame.clientHeight - padY
       setCell(fitCell(width, height))
@@ -70,12 +74,15 @@ export function Board({ cells }: BoardProps) {
     draw(context, cell, cells)
   }, [cell, cells])
 
+  const marked = placedIndexes(cells)
+  const label =
+    marked.length === 0
+      ? 'Game of Life board'
+      : `Game of Life board, cells ${marked.join(' ')} highlighted`
+
   return (
-    <div
-      ref={frameRef}
-      className="flex h-svh w-full items-center justify-center px-16 py-8"
-    >
-      <canvas ref={canvasRef} role="img" aria-label="Game of Life board" />
+    <div ref={frameRef} className="flex h-svh w-full items-center justify-center px-16 py-8">
+      <canvas ref={canvasRef} role="img" aria-label={label} />
     </div>
   )
 }
