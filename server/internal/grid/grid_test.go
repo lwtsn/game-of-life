@@ -101,6 +101,20 @@ var _ = Describe("Grid", func() {
 		Expect(got[2].Alive).To(BeFalse())
 	})
 
+	It("clears every cell and keeps the size", func() {
+		frame := snapshot{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {Alive: true}, {}, {Alive: true}}}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(nil).Return(frame).Once()
+
+		board := gridFrom(src)
+		Expect(board.Clear()).To(BeTrue())
+
+		got := board.Current()
+		Expect(got.Width()).To(Equal(2))
+		Expect(got.Height()).To(Equal(2))
+		Expect(got.Cells()).To(Equal(make([]source.Cell, 4)))
+	})
+
 	It("publishes the current board when started", func() {
 		frame := snapshot{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {Alive: true}}}
 		src := mocks.NewMockSource(GinkgoT())

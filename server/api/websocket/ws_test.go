@@ -228,6 +228,39 @@ var _ = Describe("websocket", func() {
 		Expect(readBoard(conn, ctx)).To(Equal(want))
 	})
 
+	It("clears the board and names the colour that asked", func() {
+		frame := fakeFrame{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {}}}
+		cleared := fakeFrame{width: 2, height: 2, cells: make([]source.Cell, 4)}
+		person := user.New("127.0.0.1")
+		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Current().Return(frame).Once()
+		board.EXPECT().Clear().Return(true).Once()
+		board.EXPECT().Current().Return(cleared).Once()
+		srv, _ := testServer(board)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		DeferCleanup(cancel)
+
+		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(conn.CloseNow)
+
+		want, err := frame.ToJson()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(readBoard(conn, ctx)).To(Equal(want))
+
+		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"reset":true}`))).To(Succeed())
+
+		clearedJSON, err := cleared.ToJson()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(readBoard(conn, ctx)).To(Equal(clearedJSON))
+
+		var notice struct {
+			Reset string `json:"reset"`
+		}
+		Expect(json.Unmarshal(readMessage(conn, ctx), &notice)).To(Succeed())
+		Expect(notice.Reset).To(Equal(person.Colour()))
+	})
 })
 
 func readMessage(conn *websocket.Conn, ctx context.Context) []byte {

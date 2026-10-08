@@ -15,5 +15,9 @@ export function useGrid() {
     sendJsonMessage({ x, y })
   }
 
-  return { cells, place }
+  function reset() {
+    sendJsonMessage({ reset: true })
+  }
+
+  return { cells, place, reset }
 }
