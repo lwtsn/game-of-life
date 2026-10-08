@@ -9,7 +9,7 @@ import (
 
 	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/grid/source"
-	"game_of_life/server/internal/user/service"
+	"game_of_life/server/internal/user"
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
@@ -30,7 +30,7 @@ func (f fakeFrame) ToJson() ([]byte, error) {
 	return source.Encode(f)
 }
 
-func testServer(board *mocks.MockGrid, svc service.Service) (*httptest.Server, *handler) {
+func testServer(board *mocks.MockGrid, svc user.Service) (*httptest.Server, *handler) {
 	GinkgoHelper()
 	h := New(board, svc).(*handler)
 	engine := gin.New()
@@ -45,7 +45,7 @@ var _ = Describe("websocket", func() {
 		frame := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 1}}
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
-		srv, h := testServer(board, service.New())
+		srv, h := testServer(board, user.NewService())
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		DeferCleanup(cancel)
@@ -64,7 +64,7 @@ var _ = Describe("websocket", func() {
 			Colours []string `json:"colours"`
 		}
 		Expect(json.Unmarshal(readMessage(conn, ctx), &presence)).To(Succeed())
-		Expect(presence.Colours).To(Equal([]string{service.New().Colour("127.0.0.1")}))
+		Expect(presence.Colours).To(Equal([]string{user.NewService().Colour("127.0.0.1")}))
 	})
 
 	It("forwards later board updates", func() {
@@ -80,7 +80,7 @@ var _ = Describe("websocket", func() {
 		board.EXPECT().Current().Return(first).Once()
 		board.EXPECT().Updates().Return(stream)
 
-		h := New(board, service.New())
+		h := New(board, user.NewService())
 		engine := gin.New()
 		engine.GET("/ws", h.Serve)
 		srv := httptest.NewServer(engine)

@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"game_of_life/server/internal/grid"
-	"game_of_life/server/internal/user/service"
+	"game_of_life/server/internal/user"
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
@@ -21,14 +21,14 @@ type Handler interface {
 
 type handler struct {
 	grid    grid.Grid
-	svc     service.Service
+	svc     user.Service
 	mu      sync.Mutex
 	clients map[string]*websocket.Conn
 
 	writeMu sync.Mutex
 }
 
-func New(board grid.Grid, svc service.Service) Handler {
+func New(board grid.Grid, svc user.Service) Handler {
 	return &handler{
 		grid:    board,
 		svc:     svc,
