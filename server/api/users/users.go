@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sync"
 
+	"game_of_life/server/internal/user/service"
+
 	"github.com/coder/websocket"
 )
 
@@ -18,12 +20,16 @@ type Tracker interface {
 }
 
 type tracker struct {
+	svc   service.Service
 	mu    sync.Mutex
 	users map[string]*websocket.Conn
 }
 
-func New() Tracker {
-	return &tracker{users: make(map[string]*websocket.Conn)}
+func New(svc service.Service) Tracker {
+	return &tracker{
+		svc:   svc,
+		users: make(map[string]*websocket.Conn),
+	}
 }
 
 func clientIP(r *http.Request) string {
@@ -35,8 +41,9 @@ func clientIP(r *http.Request) string {
 }
 
 func (t *tracker) Track(r *http.Request, conn *websocket.Conn) {
+	person := t.svc.ByIP(clientIP(r))
 	t.mu.Lock()
-	t.users[canonicalIP(clientIP(r))] = conn
+	t.users[person.IP()] = conn
 	t.mu.Unlock()
 }
 
@@ -45,7 +52,7 @@ func (t *tracker) Colours() []string {
 	defer t.mu.Unlock()
 	colours := make([]string, 0, len(t.users))
 	for ip := range t.users {
-		colours = append(colours, Colour(ip))
+		colours = append(colours, t.svc.Colour(ip))
 	}
 	slices.Sort(colours)
 	return colours

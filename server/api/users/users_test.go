@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"game_of_life/server/internal/user/service"
+
 	"github.com/coder/websocket"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -14,7 +16,7 @@ import (
 
 var _ = Describe("users", func() {
 	It("keeps one socket per IP", func() {
-		people := New().(*tracker)
+		people := New(service.New()).(*tracker)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 				OriginPatterns: []string{"127.0.0.1:*", "localhost:*"},

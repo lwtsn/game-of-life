@@ -10,6 +10,7 @@ import (
 	"game_of_life/server/api/users"
 	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/grid/source"
+	"game_of_life/server/internal/user/service"
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
@@ -45,7 +46,7 @@ var _ = Describe("websocket", func() {
 		frame := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 1}}
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
-		people := users.New()
+		people := users.New(service.New())
 		srv := testServer(board, people)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -65,7 +66,7 @@ var _ = Describe("websocket", func() {
 			Colours []string `json:"colours"`
 		}
 		Expect(json.Unmarshal(readMessage(conn, ctx), &presence)).To(Succeed())
-		Expect(presence.Colours).To(Equal([]string{users.Colour("127.0.0.1")}))
+		Expect(presence.Colours).To(Equal([]string{service.New().Colour("127.0.0.1")}))
 	})
 
 	It("forwards later board updates", func() {
@@ -81,7 +82,7 @@ var _ = Describe("websocket", func() {
 		board.EXPECT().Current().Return(first).Once()
 		board.EXPECT().Updates().Return(stream)
 
-		people := users.New()
+		people := users.New(service.New())
 		h := New(board, people)
 		engine := gin.New()
 		engine.GET("/ws", h.Serve)

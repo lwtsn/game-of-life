@@ -1,9 +1,29 @@
-package users
+package user
 
 import (
 	"hash/fnv"
 	"net"
 )
+
+// User is someone identified by an IP address.
+type User interface {
+	IP() string
+	Colour() string
+}
+
+type user struct {
+	ip     string
+	colour string
+}
+
+func (u user) IP() string     { return u.ip }
+func (u user) Colour() string { return u.colour }
+
+// New builds the user for an address. IPv4-mapped IPv6 is the same user as the IPv4 form.
+func New(host string) User {
+	ip := canonicalIP(host)
+	return user{ip: ip, colour: colourFor(ip)}
+}
 
 // palette starts with the style-guide navy, blue, and tint. The rest are
 // variants spread around the wheel. Every pair is far enough apart to tell
@@ -73,10 +93,9 @@ var palette = []string{
 	"#A15436",
 }
 
-// Colour is stable for an IP.
-func Colour(ip string) string {
+func colourFor(ip string) string {
 	sum := fnv.New64a()
-	_, _ = sum.Write([]byte(canonicalIP(ip)))
+	_, _ = sum.Write([]byte(ip))
 	return palette[sum.Sum64()%uint64(len(palette))]
 }
 
