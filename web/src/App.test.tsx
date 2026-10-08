@@ -23,6 +23,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Beacon' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Toad' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Glider' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Colour' }))
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
   })
 })
@@ -58,19 +59,56 @@ describe('Board', () => {
         },
       }) as DOMRect
 
-    fireEvent.click(canvas, { clientX: 6, clientY: 6 })
-    fireEvent.click(canvas, { clientX: 19, clientY: 6 })
-    fireEvent.click(canvas, { clientX: 12, clientY: 6 })
+    fireEvent.pointerDown(canvas, { clientX: 6, clientY: 6, button: 0, pointerId: 1 })
+    fireEvent.pointerUp(canvas, { pointerId: 1 })
+    fireEvent.pointerDown(canvas, { clientX: 19, clientY: 6, button: 0, pointerId: 1 })
+    fireEvent.pointerUp(canvas, { pointerId: 1 })
+    fireEvent.pointerDown(canvas, { clientX: 12, clientY: 6, button: 0, pointerId: 1 })
+    fireEvent.pointerUp(canvas, { pointerId: 1 })
+    fireEvent.pointerMove(canvas, { clientX: 6, clientY: 6, pointerId: 1 })
 
     expect(onPlace).toHaveBeenCalledTimes(2)
     expect(onPlace).toHaveBeenNthCalledWith(1, 0, 0)
     expect(onPlace).toHaveBeenNthCalledWith(2, 1, 0)
   })
 
+  it('paints each cell a drag crosses', () => {
+    const onPlace = vi.fn()
+    render(<Board cells={null} onPlace={onPlace} />)
+    const canvas = screen.getByRole('img', { name: 'Game of Life board' })
+    canvas.getBoundingClientRect = () =>
+      ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 200,
+        bottom: 200,
+        width: 200,
+        height: 200,
+        toJSON() {
+          return {}
+        },
+      }) as DOMRect
+
+    fireEvent.pointerDown(canvas, { clientX: 6, clientY: 6, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(canvas, { clientX: 6 + 13 * 4, clientY: 6, pointerId: 1 })
+    fireEvent.pointerMove(canvas, { clientX: 6 + 13 * 4, clientY: 6, pointerId: 1 })
+    fireEvent.pointerUp(canvas, { pointerId: 1 })
+
+    expect(onPlace.mock.calls).toEqual([
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [4, 0],
+    ])
+  })
+
   it('names the cells that already have a colour', () => {
     const cells = [
-      { alive: true, colour: '#7AA0CE', ip: '127.0.0.1' },
-      { alive: true, colour: '#3F72AF', ip: '10.0.0.2' },
+      { alive: true, colour: '#7AA0CE', id: 'player-one' },
+      { alive: true, colour: '#3F72AF', id: 'player-two' },
     ]
     render(<Board cells={cells} onPlace={() => {}} />)
     expect(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cellAtPoint } from './patterns.ts'
+import { cellAtPoint, cellsAlong } from './patterns.ts'
 
 describe('cellAtPoint', () => {
   it('returns the cell under the point', () => {
@@ -10,5 +10,18 @@ describe('cellAtPoint', () => {
   it('ignores the gap and the space outside the board', () => {
     expect(cellAtPoint(12, 6, 12)).toBeNull()
     expect(cellAtPoint(-1, 6, 12)).toBeNull()
+  })
+})
+
+describe('cellsAlong', () => {
+  it('joins two samples so a fast drag does not skip a cell', () => {
+    expect(cellsAlong(0, 0, 4, 0)).toEqual([
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [4, 0],
+    ])
+    expect(cellsAlong(1, 1, 1, 1)).toEqual([[1, 1]])
   })
 })

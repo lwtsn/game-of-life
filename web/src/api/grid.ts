@@ -5,7 +5,7 @@ const hex = /^#[0-9A-Fa-f]{6}$/
 
 export type Cell = {
   alive: boolean
-  ip?: string
+  id?: string
   colour?: string
 }
 
@@ -22,9 +22,9 @@ function readCell(value: unknown): Cell | null {
   if (typeof raw.alive !== 'boolean') return null
 
   const cell: Cell = { alive: raw.alive }
-  if ('ip' in raw) {
-    if (typeof raw.ip !== 'string' || raw.ip.length === 0) return null
-    cell.ip = raw.ip
+  if ('id' in raw) {
+    if (typeof raw.id !== 'string' || raw.id.length === 0) return null
+    cell.id = raw.id
   }
   if ('colour' in raw) {
     if (typeof raw.colour !== 'string' || !hex.test(raw.colour)) return null
