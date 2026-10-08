@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/user"
 
@@ -186,6 +187,63 @@ func (_c *MockGrid_Place_Call) Return(b bool) *MockGrid_Place_Call {
 }
 
 func (_c *MockGrid_Place_Call) RunAndReturn(run func(x int, y int, person user.User) bool) *MockGrid_Place_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PlaceAll provides a mock function for the type MockGrid
+func (_mock *MockGrid) PlaceAll(points []grid.Point, person user.User) bool {
+	ret := _mock.Called(points, person)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PlaceAll")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func([]grid.Point, user.User) bool); ok {
+		r0 = returnFunc(points, person)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockGrid_PlaceAll_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PlaceAll'
+type MockGrid_PlaceAll_Call struct {
+	*mock.Call
+}
+
+// PlaceAll is a helper method to define mock.On call
+//   - points []grid.Point
+//   - person user.User
+func (_e *MockGrid_Expecter) PlaceAll(points any, person any) *MockGrid_PlaceAll_Call {
+	return &MockGrid_PlaceAll_Call{Call: _e.mock.On("PlaceAll", points, person)}
+}
+
+func (_c *MockGrid_PlaceAll_Call) Run(run func(points []grid.Point, person user.User)) *MockGrid_PlaceAll_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []grid.Point
+		if args[0] != nil {
+			arg0 = args[0].([]grid.Point)
+		}
+		var arg1 user.User
+		if args[1] != nil {
+			arg1 = args[1].(user.User)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGrid_PlaceAll_Call) Return(b bool) *MockGrid_PlaceAll_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockGrid_PlaceAll_Call) RunAndReturn(run func(points []grid.Point, person user.User) bool) *MockGrid_PlaceAll_Call {
 	_c.Call.Return(run)
 	return _c
 }

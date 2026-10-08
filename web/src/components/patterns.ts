@@ -1,23 +1,16 @@
 import { COLS, ROWS } from '../api/grid.ts'
+import { Pattern } from '../gen/life/v1/pattern_pb.js'
 
 export { COLS, ROWS }
 
 export const GAP = 1
 
-export const patterns = [
-  'Glider',
-  'Blinker',
-  'Toad',
-  'Beacon',
-  'Pulsar',
-  'Lightweight spaceship',
-  'Gosper glider gun',
-  'Block',
-  'Beehive',
-  'Loaf',
+export const patternButtons = [
+  { pattern: Pattern.BLOCK, label: 'Block' },
+  { pattern: Pattern.BLINKER, label: 'Blinker' },
+  { pattern: Pattern.GLIDER, label: 'Glider' },
+  { pattern: Pattern.BEACON, label: 'Beacon' },
 ] as const
-
-export type PatternName = (typeof patterns)[number]
 
 export function cellAtPoint(x: number, y: number, cell: number) {
   if (cell <= 0) return null

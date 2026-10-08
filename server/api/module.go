@@ -2,6 +2,7 @@ package api
 
 import (
 	"game_of_life/server/api/controls"
+	"game_of_life/server/api/layout"
 	"game_of_life/server/api/websocket"
 
 	"go.uber.org/fx"
@@ -11,6 +12,7 @@ import (
 var Module = fx.Module("api",
 	websocket.Module,
 	controls.Module,
+	layout.Module,
 	fx.Provide(provideHandler),
 )
 

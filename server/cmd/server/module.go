@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"game_of_life/server/api"
 	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/life"
@@ -39,11 +41,14 @@ func provideConfig() config {
 	return config{addr: addr}
 }
 
-func provideHTTP(cfg config, handler api.Handler) *http.Server {
+func provideHTTP(cfg config, handler api.Handler, rpc *connect.Server) *http.Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	handler.Register(engine)
-	return &http.Server{Addr: cfg.addr, Handler: engine}
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, rpc)
+	mux.Handle("/", engine)
+	return &http.Server{Addr: cfg.addr, Handler: corsLocal(mux)}
 }
 
 func start(lc fx.Lifecycle, server *http.Server, handler api.Handler, board grid.Grid) {

@@ -3,15 +3,20 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
+	lifepb "game_of_life/server/gen/life/v1"
+	"game_of_life/server/internal/layout"
 	"game_of_life/server/internal/user"
 
 	"github.com/coder/websocket"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/fx"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type socketCell struct {
@@ -139,7 +144,115 @@ var _ = Describe("server", func() {
 		}
 	})
 
+	It("allows Connect from the local page and refuses another origin", func() {
+		var srv *http.Server
+		app := fx.New(
+			module(),
+			fx.Replace(config{addr: "127.0.0.1:0"}),
+			fx.Populate(&srv),
+			fx.NopLogger,
+		)
+		Expect(app.Err()).NotTo(HaveOccurred())
+		Expect(app.Start(context.Background())).To(Succeed())
+		DeferCleanup(func() {
+			stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			Expect(app.Stop(stopCtx)).To(Succeed())
+		})
+
+		ask := func(origin string) *http.Response {
+			GinkgoHelper()
+			req, err := http.NewRequest(http.MethodOptions, "http://"+srv.Addr+"/life.v1.LayoutService/Place", nil)
+			Expect(err).NotTo(HaveOccurred())
+			req.Header.Set("Origin", origin)
+			req.Header.Set("Access-Control-Request-Method", "POST")
+			res, err := http.DefaultClient.Do(req)
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(res.Body.Close)
+			return res
+		}
+
+		local := ask("http://localhost:5173")
+		Expect(local.StatusCode).To(Equal(http.StatusNoContent))
+		Expect(local.Header.Get("Access-Control-Allow-Origin")).To(Equal("http://localhost:5173"))
+		Expect(local.Header.Get("Access-Control-Allow-Headers")).To(ContainSubstring("Connect-Protocol-Version"))
+
+		other := ask("https://example.com")
+		Expect(other.Header.Get("Access-Control-Allow-Origin")).To(BeEmpty())
+	})
+
+	It("stamps a block through Connect and sends it on the socket", func() {
+		var srv *http.Server
+		app := fx.New(
+			module(),
+			fx.Replace(config{addr: "127.0.0.1:0"}),
+			fx.Replace(layout.Origin(func(int, int, int, int) (int, int) { return 4, 5 })),
+			fx.Populate(&srv),
+			fx.NopLogger,
+		)
+		Expect(app.Err()).NotTo(HaveOccurred())
+		Expect(app.Start(context.Background())).To(Succeed())
+		DeferCleanup(func() {
+			stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			Expect(app.Stop(stopCtx)).To(Succeed())
+		})
+
+		dialCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		DeferCleanup(cancel)
+
+		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
+		Expect(err).NotTo(HaveOccurred())
+		conn.SetReadLimit(1 << 20)
+		DeferCleanup(conn.CloseNow)
+		_ = readSocketFrame(conn, dialCtx)
+
+		rejected, rejectedBody := postPlace(srv, `{}`)
+		Expect(rejected.StatusCode).To(Equal(http.StatusBadRequest))
+		Expect(string(rejectedBody)).To(ContainSubstring("invalid_argument"))
+
+		res, body := postPlace(srv, `{"pattern":"PATTERN_BLOCK"}`)
+		Expect(res.StatusCode).To(Equal(http.StatusOK))
+		Expect(res.Header.Get("Content-Type")).To(ContainSubstring("application/json"))
+		var placed lifepb.PlaceResponse
+		Expect(protojson.Unmarshal(body, &placed)).To(Succeed())
+		Expect(placed.GetApplied()).To(BeTrue())
+		Expect(placed.GetPattern()).To(Equal(lifepb.Pattern_PATTERN_BLOCK))
+		Expect(placed.GetOrigin().GetX()).To(Equal(int32(4)))
+		Expect(placed.GetOrigin().GetY()).To(Equal(int32(5)))
+
+		person := user.New("127.0.0.1")
+		cells := [][2]int{{4, 5}, {5, 5}, {4, 6}, {5, 6}}
+		seen := readUntil(conn, dialCtx, func(frame socketFrame) bool {
+			if len(frame.Cells) != 80*50 {
+				return false
+			}
+			for _, xy := range cells {
+				cell := frame.Cells[xy[1]*80+xy[0]]
+				if !cell.Alive || cell.Colour != person.Colour() || cell.IP != person.IP() {
+					return false
+				}
+			}
+			return true
+		})
+		Expect(seen.Cells[5*80+4].Colour).To(Equal(person.Colour()))
+	})
+
 })
+
+func postPlace(srv *http.Server, body string) (*http.Response, []byte) {
+	GinkgoHelper()
+	req, err := http.NewRequest(http.MethodPost, "http://"+srv.Addr+"/life.v1.LayoutService/Place", strings.NewReader(body))
+	Expect(err).NotTo(HaveOccurred())
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Connect-Protocol-Version", "1")
+	res, err := http.DefaultClient.Do(req)
+	Expect(err).NotTo(HaveOccurred())
+	defer res.Body.Close()
+	payload, err := io.ReadAll(res.Body)
+	Expect(err).NotTo(HaveOccurred())
+	return res, payload
+}
 
 func readSocketFrame(conn *websocket.Conn, ctx context.Context) socketFrame {
 	GinkgoHelper()

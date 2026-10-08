@@ -16,6 +16,13 @@ type Grid interface {
 	Start(context.Context)
 	Updates() <-chan []byte
 	Place(x, y int, person user.User) bool
+	PlaceAll(points []Point, person user.User) bool
+}
+
+// Point is a column and a row on the board.
+type Point struct {
+	X int
+	Y int
 }
 
 type snapshot struct {
@@ -85,6 +92,29 @@ func (g *grid) Place(x, y int, person user.User) bool {
 	}
 	cells := append([]source.Cell(nil), g.current.Cells()...)
 	cells[y*width+x] = source.Cell{Alive: true, User: person}
+	g.current = snapshot{width: width, height: height, cells: cells}
+	return true
+}
+
+// PlaceAll records that this person made every point alive, in one update.
+// It returns false when there is no board, the person is nil, the list is empty, or any point is outside the board.
+func (g *grid) PlaceAll(points []Point, person user.User) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.current == nil || person == nil || len(points) == 0 {
+		return false
+	}
+	width := g.current.Width()
+	height := g.current.Height()
+	for _, point := range points {
+		if point.X < 0 || point.Y < 0 || point.X >= width || point.Y >= height {
+			return false
+		}
+	}
+	cells := append([]source.Cell(nil), g.current.Cells()...)
+	for _, point := range points {
+		cells[point.Y*width+point.X] = source.Cell{Alive: true, User: person}
+	}
 	g.current = snapshot{width: width, height: height, cells: cells}
 	return true
 }

@@ -207,6 +207,27 @@ var _ = Describe("websocket", func() {
 		Expect(readBoard(conn, ctx)).To(Equal(placedJSON))
 	})
 
+	It("publishes the current board to connected sockets", func() {
+		frame := fakeFrame{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {}}}
+		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Current().Return(frame).Times(2)
+		srv, h := testServer(board)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		DeferCleanup(cancel)
+
+		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(conn.CloseNow)
+
+		want, err := frame.ToJson()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(readBoard(conn, ctx)).To(Equal(want))
+
+		h.Publish()
+		Expect(readBoard(conn, ctx)).To(Equal(want))
+	})
+
 })
 
 func readMessage(conn *websocket.Conn, ctx context.Context) []byte {

@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { patterns, type PatternName } from './patterns.ts'
+import type { Pattern } from '../gen/life/v1/pattern_pb.js'
+import { patternButtons } from './patterns.ts'
 
 type PatternToolbarProps = {
-  selected: PatternName
-  onSelect: (pattern: PatternName) => void
+  onPlace: (pattern: Pattern) => void
 }
 
-export function PatternToolbar({ selected, onSelect }: PatternToolbarProps) {
+export function PatternToolbar({ onPlace }: PatternToolbarProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -22,20 +22,16 @@ export function PatternToolbar({ selected, onSelect }: PatternToolbarProps) {
             Patterns
           </p>
           <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-4">
-            {patterns.map((pattern) => {
-              const isSelected = pattern === selected
-              return (
-                <button
-                  key={pattern}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => onSelect(pattern)}
-                  className={`shrink-0 border-l-2 px-3 py-2 text-left text-sm ${isSelected ? 'border-blue bg-blue text-paper' : 'border-transparent hover:bg-paper'}`}
-                >
-                  {pattern}
-                </button>
-              )
-            })}
+            {patternButtons.map((item) => (
+              <button
+                key={item.pattern}
+                type="button"
+                onClick={() => onPlace(item.pattern)}
+                className="shrink-0 border-l-2 border-transparent px-3 py-2 text-left text-sm hover:bg-paper"
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
       ) : (

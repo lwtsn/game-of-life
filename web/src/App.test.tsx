@@ -17,7 +17,12 @@ describe('App', () => {
     expect(screen.queryByText('Ada')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'Patterns' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Patterns' }))
+    expect(screen.getByRole('button', { name: 'Block' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Blinker' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Glider' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Beacon' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Toad' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Glider' }))
   })
 })
 

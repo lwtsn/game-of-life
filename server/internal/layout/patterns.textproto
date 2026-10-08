@@ -1,0 +1,36 @@
+shapes: {
+  pattern: PATTERN_BLOCK
+  label: "Block"
+  cells: { x: 0 y: 0 }
+  cells: { x: 1 y: 0 }
+  cells: { x: 0 y: 1 }
+  cells: { x: 1 y: 1 }
+}
+shapes: {
+  pattern: PATTERN_BLINKER
+  label: "Blinker"
+  cells: { x: 0 y: 1 }
+  cells: { x: 1 y: 1 }
+  cells: { x: 2 y: 1 }
+}
+shapes: {
+  pattern: PATTERN_GLIDER
+  label: "Glider"
+  cells: { x: 1 y: 0 }
+  cells: { x: 2 y: 1 }
+  cells: { x: 0 y: 2 }
+  cells: { x: 1 y: 2 }
+  cells: { x: 2 y: 2 }
+}
+shapes: {
+  pattern: PATTERN_BEACON
+  label: "Beacon"
+  cells: { x: 0 y: 0 }
+  cells: { x: 1 y: 0 }
+  cells: { x: 0 y: 1 }
+  cells: { x: 1 y: 1 }
+  cells: { x: 2 y: 2 }
+  cells: { x: 3 y: 2 }
+  cells: { x: 2 y: 3 }
+  cells: { x: 3 y: 3 }
+}

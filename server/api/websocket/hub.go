@@ -17,6 +17,7 @@ import (
 type Handler interface {
 	Serve(*gin.Context)
 	Run(context.Context)
+	Publish()
 }
 
 type handler struct {
@@ -70,6 +71,16 @@ func (h *handler) colourPayload() ([]byte, error) {
 	return json.Marshal(struct {
 		Colours []string `json:"colours"`
 	}{Colours: h.svc.Colours()})
+}
+
+// Publish writes the current board to every connected socket.
+func (h *handler) Publish() {
+	payload, err := h.grid.Current().ToJson()
+	if err != nil {
+		log.Printf("grid json: %v", err)
+		return
+	}
+	h.writeAll(payload)
 }
 
 func (h *handler) writeAll(payload []byte) bool {
