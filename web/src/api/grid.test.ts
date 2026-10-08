@@ -5,7 +5,7 @@ describe('readGridFrame', () => {
   it('accepts a full 80 by 50 frame of cells', () => {
     const cells = Array.from({ length: COLS * ROWS }, (_, index) =>
       index === 3
-        ? { alive: true, ip: '127.0.0.1', colour: '#3F72AF' }
+        ? { alive: true, id: 'player-one', colour: '#3F72AF' }
         : { alive: false },
     )
     expect(readGridFrame({ width: COLS, height: ROWS, cells })).toEqual({

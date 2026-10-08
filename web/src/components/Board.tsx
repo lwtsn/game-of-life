@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import type { Cell } from '../api/grid.ts'
-import { boardSize, cellAtPoint, COLS, fitCell, GAP, ROWS } from './patterns.ts'
+import { boardSize, cellAtPoint, cellsAlong, COLS, fitCell, GAP, ROWS } from './patterns.ts'
 
 const DEAD = '#DBE2EF'
 const ALIVE = '#112D4E'
@@ -38,6 +38,8 @@ type BoardProps = {
 export function Board({ cells, onPlace }: BoardProps) {
   const frameRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const painting = useRef(false)
+  const lastCell = useRef<{ col: number; row: number } | null>(null)
   const [cell, setCell] = useState(12)
 
   useEffect(() => {
@@ -75,13 +77,41 @@ export function Board({ cells, onPlace }: BoardProps) {
     draw(context, cell, cells)
   }, [cell, cells])
 
-  function onClick(event: MouseEvent<HTMLCanvasElement>) {
+  function paintAt(clientX: number, clientY: number) {
     const canvas = canvasRef.current
     if (!canvas) return
     const rect = canvas.getBoundingClientRect()
-    const index = cellAtPoint(event.clientX - rect.left, event.clientY - rect.top, cell)
+    const index = cellAtPoint(clientX - rect.left, clientY - rect.top, cell)
     if (index === null) return
-    onPlace(index % COLS, Math.floor(index / COLS))
+    const col = index % COLS
+    const row = Math.floor(index / COLS)
+    const from = lastCell.current
+    const points = from ? cellsAlong(from.col, from.row, col, row) : [[col, row] as [number, number]]
+    for (let i = from ? 1 : 0; i < points.length; i++) {
+      const [x, y] = points[i]
+      onPlace(x, y)
+    }
+    lastCell.current = { col, row }
+  }
+
+  function onPointerDown(event: PointerEvent<HTMLCanvasElement>) {
+    if (event.button !== 0) return
+    painting.current = true
+    lastCell.current = null
+    paintAt(event.clientX, event.clientY)
+    if (typeof event.currentTarget.setPointerCapture === 'function') {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLCanvasElement>) {
+    if (!painting.current) return
+    paintAt(event.clientX, event.clientY)
+  }
+
+  function stopPainting() {
+    painting.current = false
+    lastCell.current = null
   }
 
   const marked = placedIndexes(cells)
@@ -96,8 +126,11 @@ export function Board({ cells, onPlace }: BoardProps) {
         ref={canvasRef}
         role="img"
         aria-label={label}
-        className="cursor-pointer"
-        onClick={onClick}
+        className="cursor-pointer touch-none"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={stopPainting}
+        onPointerCancel={stopPainting}
       />
     </div>
   )

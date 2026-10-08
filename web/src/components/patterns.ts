@@ -24,6 +24,31 @@ export function cellAtPoint(x: number, y: number, cell: number) {
   return row * COLS + col
 }
 
+// Cells a stroke crosses, including both ends. Samples from a fast drag are joined so none are skipped.
+export function cellsAlong(fromCol: number, fromRow: number, toCol: number, toRow: number) {
+  const points: Array<[number, number]> = []
+  const dx = Math.abs(toCol - fromCol)
+  const dy = Math.abs(toRow - fromRow)
+  const sx = fromCol < toCol ? 1 : -1
+  const sy = fromRow < toRow ? 1 : -1
+  let err = dx - dy
+  let x = fromCol
+  let y = fromRow
+  while (true) {
+    points.push([x, y])
+    if (x === toCol && y === toRow) return points
+    const doubled = 2 * err
+    if (doubled > -dy) {
+      err -= dy
+      x += sx
+    }
+    if (doubled < dx) {
+      err += dx
+      y += sy
+    }
+  }
+}
+
 export function boardSize(cell: number) {
   return {
     width: COLS * cell + (COLS - 1) * GAP,
