@@ -2,7 +2,6 @@ package layout
 
 import (
 	"context"
-	"net"
 
 	"connectrpc.com/connect/v2"
 	"game_of_life/server/api/websocket"
@@ -28,9 +27,13 @@ func (h *handler) Place(ctx context.Context, req *lifepb.PlaceRequest) (*lifepb.
 	if !ok {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "pattern is required")
 	}
-	host, ok := peerHost(ctx)
+	id, ok := sessionID(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeInvalidArgument, "client address is required")
+		return nil, connect.NewError(connect.CodeInvalidArgument, "session is required")
+	}
+	person, ok := h.people.ByID(id)
+	if !ok {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "session is required")
 	}
 	frame := h.board.Current()
 	if frame == nil {
@@ -44,7 +47,7 @@ func (h *handler) Place(ctx context.Context, req *lifepb.PlaceRequest) (*lifepb.
 	for i, cell := range shape.Cells {
 		points[i] = grid.Point{X: x + cell.X, Y: y + cell.Y}
 	}
-	if !h.board.PlaceAll(points, h.people.ByIP(host)) {
+	if !h.board.PlaceAll(points, person) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "pattern does not fit the board")
 	}
 	h.sockets.Publish()
@@ -55,17 +58,14 @@ func (h *handler) Place(ctx context.Context, req *lifepb.PlaceRequest) (*lifepb.
 	}, nil
 }
 
-func peerHost(ctx context.Context) (string, bool) {
+func sessionID(ctx context.Context) (string, bool) {
 	info, ok := connect.CallInfoForServerContext(ctx)
-	if !ok || info.PeerAddr == "" {
+	if !ok {
 		return "", false
 	}
-	host, _, err := net.SplitHostPort(info.PeerAddr)
-	if err != nil {
-		return info.PeerAddr, true
-	}
-	if host == "" {
+	id := info.RequestHeader().Get("X-Session")
+	if id == "" {
 		return "", false
 	}
-	return host, true
+	return id, true
 }

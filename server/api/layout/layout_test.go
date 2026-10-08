@@ -56,7 +56,7 @@ var _ = Describe("Place", func() {
 		Expect(aliveCount(board)).To(Equal(0))
 	})
 
-	It("does not stamp when the transport has no client address", func() {
+	It("does not stamp when the call has no session", func() {
 		client, board := placeClient()
 		_, err := client.Place(context.Background(), &lifepb.PlaceRequest{
 			Pattern: lifepb.Pattern_PATTERN_BLOCK,

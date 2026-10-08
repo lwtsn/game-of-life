@@ -10,7 +10,6 @@ import (
 
 	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/layout"
-	"game_of_life/server/internal/user"
 
 	"github.com/coder/websocket"
 	. "github.com/onsi/ginkgo/v2"
@@ -21,7 +20,7 @@ import (
 
 type socketCell struct {
 	Alive  bool   `json:"alive"`
-	IP     string `json:"ip"`
+	ID     string `json:"id"`
 	Colour string `json:"colour"`
 }
 
@@ -99,13 +98,12 @@ var _ = Describe("server", func() {
 		dialCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 		DeferCleanup(cancel)
 
-		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
+		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		conn.SetReadLimit(1 << 20)
 		DeferCleanup(conn.CloseNow)
 		_ = readSocketFrame(conn, dialCtx)
 
-		person := user.New("127.0.0.1")
 		places := [][2]int{{0, 0}, {1, 0}, {0, 1}, {1, 1}}
 		for _, xy := range places {
 			payload, err := json.Marshal(struct {
@@ -122,15 +120,15 @@ var _ = Describe("server", func() {
 			}
 			for _, xy := range places {
 				cell := frame.Cells[xy[1]*80+xy[0]]
-				if !cell.Alive || cell.Colour != person.Colour() || cell.IP != person.IP() {
+				if !cell.Alive || cell.Colour != "#112D4E" || cell.ID != "player-one" {
 					return false
 				}
 			}
 			return true
 		})
-		Expect(placed.Cells[0].Colour).To(Equal(person.Colour()))
+		Expect(placed.Cells[0].Colour).To(Equal("#112D4E"))
 
-		other, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
+		other, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		other.SetReadLimit(1 << 20)
 		DeferCleanup(other.CloseNow)
@@ -139,9 +137,57 @@ var _ = Describe("server", func() {
 		for _, xy := range places {
 			cell := seen.Cells[xy[1]*80+xy[0]]
 			Expect(cell.Alive).To(BeTrue())
-			Expect(cell.Colour).To(Equal(person.Colour()))
-			Expect(cell.IP).To(Equal("127.0.0.1"))
+			Expect(cell.Colour).To(Equal("#112D4E"))
+			Expect(cell.ID).To(Equal("player-one"))
 		}
+	})
+
+	It("sends the whole board when a birth takes its parents' colour", func() {
+		var srv *http.Server
+		app := fx.New(
+			module(),
+			fx.Replace(config{addr: "127.0.0.1:0"}),
+			fx.Populate(&srv),
+			fx.NopLogger,
+		)
+		Expect(app.Err()).NotTo(HaveOccurred())
+		Expect(app.Start(context.Background())).To(Succeed())
+		DeferCleanup(func() {
+			stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			Expect(app.Stop(stopCtx)).To(Succeed())
+		})
+
+		dialCtx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+		DeferCleanup(cancel)
+
+		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws?session=player-one", nil)
+		Expect(err).NotTo(HaveOccurred())
+		conn.SetReadLimit(1 << 20)
+		DeferCleanup(conn.CloseNow)
+		_ = readSocketFrame(conn, dialCtx)
+
+		for _, xy := range [][2]int{{10, 10}, {11, 10}, {12, 10}} {
+			payload, err := json.Marshal(struct {
+				X int `json:"x"`
+				Y int `json:"y"`
+			}{X: xy[0], Y: xy[1]})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(conn.Write(dialCtx, websocket.MessageText, payload)).To(Succeed())
+		}
+
+		born := readUntil(conn, dialCtx, func(frame socketFrame) bool {
+			if len(frame.Cells) != 80*50 {
+				return false
+			}
+			birth := frame.Cells[9*80+11]
+			return birth.Alive && birth.Colour == "#112D4E" && birth.ID == ""
+		})
+		expectFullGrid(born)
+		survivor := born.Cells[10*80+11]
+		Expect(survivor.Alive).To(BeTrue())
+		Expect(survivor.Colour).To(Equal("#112D4E"))
+		Expect(survivor.ID).To(Equal("player-one"))
 	})
 
 	It("allows Connect from the local page and refuses another origin", func() {
@@ -201,17 +247,17 @@ var _ = Describe("server", func() {
 		dialCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 		DeferCleanup(cancel)
 
-		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
+		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		conn.SetReadLimit(1 << 20)
 		DeferCleanup(conn.CloseNow)
 		_ = readSocketFrame(conn, dialCtx)
 
-		rejected, rejectedBody := postPlace(srv, `{}`)
+		rejected, rejectedBody := postPlace(srv, `{}`, "")
 		Expect(rejected.StatusCode).To(Equal(http.StatusBadRequest))
 		Expect(string(rejectedBody)).To(ContainSubstring("invalid_argument"))
 
-		res, body := postPlace(srv, `{"pattern":"PATTERN_BLOCK"}`)
+		res, body := postPlace(srv, `{"pattern":"PATTERN_BLOCK"}`, "player-one")
 		Expect(res.StatusCode).To(Equal(http.StatusOK))
 		Expect(res.Header.Get("Content-Type")).To(ContainSubstring("application/json"))
 		var placed lifepb.PlaceResponse
@@ -221,7 +267,6 @@ var _ = Describe("server", func() {
 		Expect(placed.GetOrigin().GetX()).To(Equal(int32(4)))
 		Expect(placed.GetOrigin().GetY()).To(Equal(int32(5)))
 
-		person := user.New("127.0.0.1")
 		cells := [][2]int{{4, 5}, {5, 5}, {4, 6}, {5, 6}}
 		seen := readUntil(conn, dialCtx, func(frame socketFrame) bool {
 			if len(frame.Cells) != 80*50 {
@@ -229,13 +274,13 @@ var _ = Describe("server", func() {
 			}
 			for _, xy := range cells {
 				cell := frame.Cells[xy[1]*80+xy[0]]
-				if !cell.Alive || cell.Colour != person.Colour() || cell.IP != person.IP() {
+				if !cell.Alive || cell.Colour != "#112D4E" || cell.ID != "player-one" {
 					return false
 				}
 			}
 			return true
 		})
-		Expect(seen.Cells[5*80+4].Colour).To(Equal(person.Colour()))
+		Expect(seen.Cells[5*80+4].Colour).To(Equal("#112D4E"))
 	})
 
 	It("clears the board and names the colour that asked", func() {
@@ -258,22 +303,21 @@ var _ = Describe("server", func() {
 		dialCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 		DeferCleanup(cancel)
 
-		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws", nil)
+		conn, _, err := websocket.Dial(dialCtx, "ws://"+srv.Addr+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		conn.SetReadLimit(1 << 20)
 		DeferCleanup(conn.CloseNow)
 
-		res, body := postPlace(srv, `{"pattern":"PATTERN_BLOCK"}`)
+		res, body := postPlace(srv, `{"pattern":"PATTERN_BLOCK"}`, "player-one")
 		Expect(res.StatusCode).To(Equal(http.StatusOK))
 		Expect(string(body)).To(ContainSubstring(`"applied":true`))
 
-		person := user.New("127.0.0.1")
 		_ = readUntil(conn, dialCtx, func(frame socketFrame) bool {
 			if len(frame.Cells) != 80*50 {
 				return false
 			}
 			cell := frame.Cells[5*80+4]
-			return cell.Alive && cell.Colour == person.Colour()
+			return cell.Alive && cell.Colour == "#112D4E"
 		})
 
 		Expect(conn.Write(dialCtx, websocket.MessageText, []byte(`{"reset":true}`))).To(Succeed())
@@ -290,7 +334,7 @@ var _ = Describe("server", func() {
 				Reset string       `json:"reset"`
 			}
 			Expect(json.Unmarshal(data, &raw)).To(Succeed())
-			if raw.Reset == person.Colour() {
+			if raw.Reset == "#112D4E" {
 				notice = raw.Reset
 			}
 			if raw.Width == 80 && len(raw.Cells) == 80*50 {
@@ -306,16 +350,19 @@ var _ = Describe("server", func() {
 				}
 			}
 		}
-		Expect(notice).To(Equal(person.Colour()))
+		Expect(notice).To(Equal("#112D4E"))
 	})
 })
 
-func postPlace(srv *http.Server, body string) (*http.Response, []byte) {
+func postPlace(srv *http.Server, body, session string) (*http.Response, []byte) {
 	GinkgoHelper()
 	req, err := http.NewRequest(http.MethodPost, "http://"+srv.Addr+"/life.v1.LayoutService/Place", strings.NewReader(body))
 	Expect(err).NotTo(HaveOccurred())
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Connect-Protocol-Version", "1")
+	if session != "" {
+		req.Header.Set("X-Session", session)
+	}
 	res, err := http.DefaultClient.Do(req)
 	Expect(err).NotTo(HaveOccurred())
 	defer res.Body.Close()

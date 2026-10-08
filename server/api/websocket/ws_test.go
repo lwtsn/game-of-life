@@ -67,7 +67,7 @@ var _ = Describe("websocket", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		DeferCleanup(cancel)
 
-		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(conn.CloseNow)
 
@@ -81,7 +81,9 @@ var _ = Describe("websocket", func() {
 			Colours []string `json:"colours"`
 		}
 		Expect(json.Unmarshal(readMessage(conn, ctx), &presence)).To(Succeed())
-		Expect(presence.Colours).To(Equal([]string{h.svc.Colour("127.0.0.1")}))
+		person, ok := h.svc.ByID("player-one")
+		Expect(ok).To(BeTrue())
+		Expect(presence.Colours).To(Equal([]string{person.Colour()}))
 	})
 
 	It("forwards later board updates", func() {
@@ -124,7 +126,7 @@ var _ = Describe("websocket", func() {
 		Expect(readBoard(conn, dialCtx)).To(Equal(secondJSON))
 	})
 
-	It("sends a board update to every connection from the same address", func() {
+	It("sends a board update to every connection for the session", func() {
 		first := fakeFrame{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {}}}
 		second := fakeFrame{width: 2, height: 2, cells: []source.Cell{{}, {Alive: true}, {}, {}}}
 		secondJSON, err := second.ToJson()
@@ -152,7 +154,7 @@ var _ = Describe("websocket", func() {
 
 		dial := func() *websocket.Conn {
 			GinkgoHelper()
-			conn, _, err := websocket.Dial(dialCtx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+			conn, _, err := websocket.Dial(dialCtx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
 			Expect(err).NotTo(HaveOccurred())
 			DeferCleanup(func() { conn.CloseNow() })
 			return conn
@@ -173,7 +175,7 @@ var _ = Describe("websocket", func() {
 
 	It("places the cell the connection asked for", func() {
 		frame := fakeFrame{width: 2, height: 2, cells: make([]source.Cell, 4)}
-		person := user.New("127.0.0.1")
+		person := user.New("player-one")
 		placed := fakeFrame{width: 2, height: 2, cells: []source.Cell{
 			{},
 			{Alive: true, User: person},
@@ -183,7 +185,7 @@ var _ = Describe("websocket", func() {
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
 		board.EXPECT().Place(1, 0, mock.MatchedBy(func(got user.User) bool {
-			return got != nil && got.IP() == person.IP() && got.Colour() == person.Colour()
+			return got != nil && got.ID() == "player-one" && got.Colour() == "#112D4E"
 		})).Return(true).Once()
 		board.EXPECT().Current().Return(placed).Once()
 		srv, _ := testServer(board)
@@ -191,7 +193,7 @@ var _ = Describe("websocket", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		DeferCleanup(cancel)
 
-		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(conn.CloseNow)
 
@@ -231,7 +233,6 @@ var _ = Describe("websocket", func() {
 	It("clears the board and names the colour that asked", func() {
 		frame := fakeFrame{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {}}}
 		cleared := fakeFrame{width: 2, height: 2, cells: make([]source.Cell, 4)}
-		person := user.New("127.0.0.1")
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
 		board.EXPECT().Clear().Return(true).Once()
@@ -241,7 +242,7 @@ var _ = Describe("websocket", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		DeferCleanup(cancel)
 
-		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(conn.CloseNow)
 
@@ -259,7 +260,37 @@ var _ = Describe("websocket", func() {
 			Reset string `json:"reset"`
 		}
 		Expect(json.Unmarshal(readMessage(conn, ctx), &notice)).To(Succeed())
-		Expect(notice.Reset).To(Equal(person.Colour()))
+		Expect(notice.Reset).To(Equal("#112D4E"))
+	})
+
+	It("rolls a new colour for the session", func() {
+		frame := fakeFrame{width: 2, height: 2, cells: make([]source.Cell, 4)}
+		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Current().Return(frame).Once()
+		srv, h := testServer(board)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		DeferCleanup(cancel)
+
+		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(conn.CloseNow)
+		_ = readBoard(conn, ctx)
+
+		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"recolour":true}`))).To(Succeed())
+
+		var you struct {
+			You string `json:"you"`
+		}
+		Eventually(func() string {
+			Expect(json.Unmarshal(readMessage(conn, ctx), &you)).To(Succeed())
+			return you.You
+		}, time.Second, 10*time.Millisecond).Should(Equal("#3F72AF"))
+
+		person, ok := h.svc.ByID("player-one")
+		Expect(ok).To(BeTrue())
+		Expect(person.Colour()).To(Equal("#3F72AF"))
+		Expect(h.svc.Colours()).To(Equal([]string{"#3F72AF"}))
 	})
 })
 
@@ -276,11 +307,8 @@ func readBoard(conn *websocket.Conn, ctx context.Context) []byte {
 		data := readMessage(conn, ctx)
 		var body map[string]any
 		Expect(json.Unmarshal(data, &body)).To(Succeed())
-		if _, ok := body["colours"]; ok {
-			if _, grid := body["width"]; !grid {
-				continue
-			}
+		if _, ok := body["width"]; ok {
+			return data
 		}
-		return data
 	}
 }

@@ -12,7 +12,7 @@ func corsLocal(next http.Handler) http.Handler {
 			header.Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 			header.Add("Vary", "Origin")
 			header.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-			header.Set("Access-Control-Allow-Headers", "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, Connect-Accept-Encoding, Connect-Content-Encoding, Grpc-Timeout, X-Grpc-Web, X-User-Agent")
+			header.Set("Access-Control-Allow-Headers", "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, Connect-Accept-Encoding, Connect-Content-Encoding, Grpc-Timeout, X-Grpc-Web, X-User-Agent, X-Session")
 			header.Set("Access-Control-Expose-Headers", "Connect-Content-Encoding")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)

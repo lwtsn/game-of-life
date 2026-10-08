@@ -78,6 +78,11 @@ func (g *grid) Updates() <-chan []byte {
 	return g.updates
 }
 
+// placed records the person and copies their colour onto the square.
+func placed(person user.User) source.Cell {
+	return source.Cell{Alive: true, User: person, Colour: person.Colour()}
+}
+
 // Place records that this person made the square at column x and row y alive.
 // It returns false when there is no board, the person is nil, or the square is outside the board.
 func (g *grid) Place(x, y int, person user.User) bool {
@@ -92,7 +97,7 @@ func (g *grid) Place(x, y int, person user.User) bool {
 		return false
 	}
 	cells := append([]source.Cell(nil), g.current.Cells()...)
-	cells[y*width+x] = source.Cell{Alive: true, User: person}
+	cells[y*width+x] = placed(person)
 	g.current = snapshot{width: width, height: height, cells: cells}
 	return true
 }
@@ -114,7 +119,7 @@ func (g *grid) PlaceAll(points []Point, person user.User) bool {
 	}
 	cells := append([]source.Cell(nil), g.current.Cells()...)
 	for _, point := range points {
-		cells[point.Y*width+point.X] = source.Cell{Alive: true, User: person}
+		cells[point.Y*width+point.X] = placed(person)
 	}
 	g.current = snapshot{width: width, height: height, cells: cells}
 	return true
