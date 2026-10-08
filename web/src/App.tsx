@@ -8,14 +8,14 @@ import { usePresence } from './hooks/usePresence.ts'
 
 function App() {
   const [selected, setSelected] = useState<PatternName>(patterns[0])
-  const cells = useGrid()
+  const { cells, place } = useGrid()
   const colours = usePresence()
 
   return (
     <main className="relative h-svh overflow-hidden bg-paper font-sans text-navy">
       <Presence colours={colours} />
       <PatternToolbar selected={selected} onSelect={setSelected} />
-      <Board cells={cells} />
+      <Board cells={cells} onPlace={place} />
     </main>
   )
 }

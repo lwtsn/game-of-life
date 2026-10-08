@@ -6,6 +6,7 @@ import (
 
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/grid/source/mocks"
+	"game_of_life/server/internal/user"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -56,6 +57,27 @@ var _ = Describe("Grid", func() {
 		board.Advance()
 
 		Expect(board.Current().Cells()).To(Equal([]source.Cell{{}, {Alive: true}, {}, {}}))
+	})
+
+	It("places the person on one cell", func() {
+		frame := snapshot{width: 2, height: 2, cells: make([]source.Cell, 4)}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(nil).Return(frame).Once()
+
+		board := gridFrom(src)
+		person := user.New("198.51.100.10")
+		Expect(board.Place(1, 0, person)).To(BeTrue())
+		Expect(board.Place(-1, 0, person)).To(BeFalse())
+		Expect(board.Place(0, 0, nil)).To(BeFalse())
+
+		got := board.Current().Cells()
+		Expect(got[1]).To(Equal(source.Cell{Alive: true, User: person}))
+		Expect(got[0].Alive).To(BeFalse())
+
+		payload, err := board.Current().ToJson()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(payload)).To(ContainSubstring(person.Colour()))
+		Expect(string(payload)).To(ContainSubstring(person.IP()))
 	})
 
 	It("publishes the current board when started", func() {

@@ -7,16 +7,29 @@ import (
 	"strings"
 	"time"
 
+	"game_of_life/server/internal/grid"
+	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/user"
 
 	"github.com/coder/websocket"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/fx"
 )
 
 var _ = Describe("clients", func() {
-	It("keeps one socket per IP", func() {
-		people := New(nil, user.NewService()).(*handler)
+	It("keeps every socket from the same address", func() {
+		board := mocks.NewMockGrid(GinkgoT())
+		var api Handler
+		app := fx.New(
+			user.Module,
+			Module,
+			fx.Provide(func() grid.Grid { return board }),
+			fx.Populate(&api),
+			fx.NopLogger,
+		)
+		Expect(app.Err()).NotTo(HaveOccurred())
+		people := api.(*handler)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 				OriginPatterns: []string{"127.0.0.1:*", "localhost:*"},
@@ -46,28 +59,30 @@ var _ = Describe("clients", func() {
 			return conn
 		}
 
-		dial()
-		var tracked *websocket.Conn
-		Eventually(func() *websocket.Conn {
+		first := dial()
+		Eventually(func() int {
 			people.mu.Lock()
 			defer people.mu.Unlock()
-			return people.clients["127.0.0.1"]
-		}, time.Second, 10*time.Millisecond).ShouldNot(BeNil())
-		people.mu.Lock()
-		tracked = people.clients["127.0.0.1"]
-		people.mu.Unlock()
+			return len(people.clients)
+		}, time.Second, 10*time.Millisecond).Should(Equal(1))
 
 		second := dial()
-		Eventually(func() *websocket.Conn {
+		Eventually(func() int {
 			people.mu.Lock()
 			defer people.mu.Unlock()
-			if len(people.clients) != 1 {
-				return nil
-			}
-			return people.clients["127.0.0.1"]
-		}, time.Second, 10*time.Millisecond).ShouldNot(Equal(tracked))
+			return len(people.clients)
+		}, time.Second, 10*time.Millisecond).Should(Equal(2))
+		Expect(people.svc.Colours()).To(HaveLen(1))
 
 		second.CloseNow()
+		Eventually(func() int {
+			people.mu.Lock()
+			defer people.mu.Unlock()
+			return len(people.clients)
+		}, time.Second, 10*time.Millisecond).Should(Equal(1))
+		Expect(people.svc.Colours()).To(HaveLen(1))
+
+		first.CloseNow()
 		Eventually(func() int {
 			people.mu.Lock()
 			defer people.mu.Unlock()

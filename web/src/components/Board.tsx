@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import type { Cell } from '../api/grid.ts'
-import { boardSize, COLS, fitCell, GAP, ROWS } from './patterns.ts'
+import { boardSize, cellAtPoint, COLS, fitCell, GAP, ROWS } from './patterns.ts'
 
 const DEAD = '#DBE2EF'
 const ALIVE = '#112D4E'
@@ -32,9 +32,10 @@ function placedIndexes(cells: Cell[] | null) {
 
 type BoardProps = {
   cells: Cell[] | null
+  onPlace: (x: number, y: number) => void
 }
 
-export function Board({ cells }: BoardProps) {
+export function Board({ cells, onPlace }: BoardProps) {
   const frameRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [cell, setCell] = useState(12)
@@ -74,6 +75,15 @@ export function Board({ cells }: BoardProps) {
     draw(context, cell, cells)
   }, [cell, cells])
 
+  function onClick(event: MouseEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const index = cellAtPoint(event.clientX - rect.left, event.clientY - rect.top, cell)
+    if (index === null) return
+    onPlace(index % COLS, Math.floor(index / COLS))
+  }
+
   const marked = placedIndexes(cells)
   const label =
     marked.length === 0
@@ -82,7 +92,13 @@ export function Board({ cells }: BoardProps) {
 
   return (
     <div ref={frameRef} className="flex h-svh w-full items-center justify-center px-16 py-8">
-      <canvas ref={canvasRef} role="img" aria-label={label} />
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label={label}
+        className="cursor-pointer"
+        onClick={onClick}
+      />
     </div>
   )
 }
