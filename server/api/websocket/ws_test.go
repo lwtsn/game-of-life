@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"game_of_life/server/api/users"
 	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/user/service"
@@ -31,14 +30,14 @@ func (f fakeFrame) ToJson() ([]byte, error) {
 	return source.Encode(f)
 }
 
-func testServer(board *mocks.MockGrid, people users.Tracker) *httptest.Server {
+func testServer(board *mocks.MockGrid, svc service.Service) (*httptest.Server, *handler) {
 	GinkgoHelper()
-	h := New(board, people)
+	h := New(board, svc).(*handler)
 	engine := gin.New()
 	engine.GET("/ws", h.Serve)
 	srv := httptest.NewServer(engine)
 	DeferCleanup(srv.Close)
-	return srv
+	return srv, h
 }
 
 var _ = Describe("websocket", func() {
@@ -46,8 +45,7 @@ var _ = Describe("websocket", func() {
 		frame := fakeFrame{width: 2, height: 2, cells: []int{1, 0, 0, 1}}
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
-		people := users.New(service.New())
-		srv := testServer(board, people)
+		srv, h := testServer(board, service.New())
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		DeferCleanup(cancel)
@@ -60,7 +58,7 @@ var _ = Describe("websocket", func() {
 		want, err := frame.ToJson()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(data).To(Equal(want))
-		Expect(people.Conns()).To(HaveLen(1))
+		Expect(h.conns()).To(HaveLen(1))
 
 		var presence struct {
 			Colours []string `json:"colours"`
@@ -82,8 +80,7 @@ var _ = Describe("websocket", func() {
 		board.EXPECT().Current().Return(first).Once()
 		board.EXPECT().Updates().Return(stream)
 
-		people := users.New(service.New())
-		h := New(board, people)
+		h := New(board, service.New())
 		engine := gin.New()
 		engine.GET("/ws", h.Serve)
 		srv := httptest.NewServer(engine)

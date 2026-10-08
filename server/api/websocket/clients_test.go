@@ -1,4 +1,4 @@
-package users
+package websocket
 
 import (
 	"context"
@@ -14,9 +14,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("users", func() {
+var _ = Describe("clients", func() {
 	It("keeps one socket per IP", func() {
-		people := New(service.New()).(*tracker)
+		people := New(nil, service.New()).(*handler)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 				OriginPatterns: []string{"127.0.0.1:*", "localhost:*"},
@@ -24,11 +24,11 @@ var _ = Describe("users", func() {
 			if err != nil {
 				return
 			}
-			people.Track(r, conn)
+			people.track(r, conn)
 			for {
 				_, _, err := conn.Read(r.Context())
 				if err != nil {
-					people.Disconnect(conn)
+					people.disconnect(conn)
 					return
 				}
 			}
@@ -51,27 +51,28 @@ var _ = Describe("users", func() {
 		Eventually(func() *websocket.Conn {
 			people.mu.Lock()
 			defer people.mu.Unlock()
-			return people.users["127.0.0.1"]
+			return people.clients["127.0.0.1"]
 		}, time.Second, 10*time.Millisecond).ShouldNot(BeNil())
 		people.mu.Lock()
-		tracked = people.users["127.0.0.1"]
+		tracked = people.clients["127.0.0.1"]
 		people.mu.Unlock()
 
 		second := dial()
 		Eventually(func() *websocket.Conn {
 			people.mu.Lock()
 			defer people.mu.Unlock()
-			if len(people.users) != 1 {
+			if len(people.clients) != 1 {
 				return nil
 			}
-			return people.users["127.0.0.1"]
+			return people.clients["127.0.0.1"]
 		}, time.Second, 10*time.Millisecond).ShouldNot(Equal(tracked))
 
 		second.CloseNow()
 		Eventually(func() int {
 			people.mu.Lock()
 			defer people.mu.Unlock()
-			return len(people.users)
+			return len(people.clients)
 		}, time.Second, 10*time.Millisecond).Should(Equal(0))
+		Expect(people.svc.Colours()).To(BeEmpty())
 	})
 })
