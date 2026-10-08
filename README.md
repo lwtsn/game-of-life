@@ -74,6 +74,10 @@ Trade offs:
 - The backend runs a less efficient algorithm
 - The step stays simple enough to walk through and to interrupt safely
 
+## Other work
+
+I also build [Wisp](https://usewisp.dev), an open-source Go trading framework with an intuitive SDK design and connectors to spot, perp, and prediction markets.
+
 ## On your machine
 
 Go 1.26 and Node 22 are enough. Start the server before the page.
