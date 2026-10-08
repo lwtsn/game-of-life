@@ -20,7 +20,7 @@ func (h *handler) Serve(c *gin.Context) {
 	}
 	conn.SetReadLimit(1024)
 
-	h.track(c.Request, conn)
+	fresh := h.track(c.Request, conn)
 
 	payload, err := h.grid.Current().ToJson()
 	if err != nil {
@@ -35,6 +35,9 @@ func (h *handler) Serve(c *gin.Context) {
 	h.broadcastColours()
 	if person := h.userFor(conn); person != nil {
 		h.tellColour(person.ID(), person.Colour())
+		if fresh {
+			h.announce("entered", person.Colour())
+		}
 	}
 
 	for {
@@ -119,6 +122,18 @@ func (h *handler) chooseColour(conn *websocket.Conn, colour string) {
 	}
 	h.tellColour(next.ID(), next.Colour())
 	h.broadcastColours()
+}
+
+func (h *handler) announce(field, colour string) {
+	if colour == "" {
+		return
+	}
+	payload, err := json.Marshal(map[string]string{field: colour})
+	if err != nil {
+		log.Printf("presence json: %v", err)
+		return
+	}
+	h.writeAll(payload)
 }
 
 func (h *handler) tellColour(id, colour string) {

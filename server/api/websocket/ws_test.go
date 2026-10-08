@@ -299,7 +299,66 @@ var _ = Describe("websocket", func() {
 		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"x":1,"y":0}`))).To(Succeed())
 		Expect(readBoard(conn, ctx)).NotTo(BeEmpty())
 	})
+
+	It("announces a session on its first socket and when its last socket closes", func() {
+		frame := fakeFrame{width: 1, height: 1, cells: []source.Cell{{}}}
+		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Current().Return(frame)
+		srv, h := testServer(board)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		DeferCleanup(cancel)
+
+		first, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(first.CloseNow)
+		Expect(readNotice(first, ctx, "entered")).To(Equal("#112D4E"))
+
+		second, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-two", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(func() { _ = second.CloseNow() })
+		Expect(readNotice(first, ctx, "entered")).To(Equal("#3F72AF"))
+		Expect(readNotice(second, ctx, "entered")).To(Equal("#3F72AF"))
+
+		extra, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(extra.CloseNow)
+		sawEntered := false
+		for {
+			var body map[string]any
+			Expect(json.Unmarshal(readMessage(first, ctx), &body)).To(Succeed())
+			if _, ok := body["entered"]; ok {
+				sawEntered = true
+			}
+			if _, ok := body["you"]; ok {
+				break
+			}
+		}
+		Expect(sawEntered).To(BeFalse())
+
+		Expect(second.Write(ctx, websocket.MessageText, []byte(`{"colour":"#E58700"}`))).To(Succeed())
+		Eventually(func() string {
+			person, ok := h.svc.ByID("player-two")
+			if !ok {
+				return ""
+			}
+			return person.Colour()
+		}, time.Second, 10*time.Millisecond).Should(Equal("#E58700"))
+		Expect(second.Close(websocket.StatusNormalClosure, "")).To(Succeed())
+		Expect(readNotice(first, ctx, "exited")).To(Equal("#E58700"))
+	})
 })
+
+func readNotice(conn *websocket.Conn, ctx context.Context, key string) string {
+	GinkgoHelper()
+	for {
+		var body map[string]any
+		Expect(json.Unmarshal(readMessage(conn, ctx), &body)).To(Succeed())
+		if value, ok := body[key].(string); ok {
+			return value
+		}
+	}
+}
 
 func readMessage(conn *websocket.Conn, ctx context.Context) []byte {
 	GinkgoHelper()
