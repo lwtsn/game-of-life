@@ -56,10 +56,8 @@ func channel(value float64) uint8 {
 	return uint8(math.Round(value * 255))
 }
 
-// toOKLab turns a screen colour into L, a, and b.
-// A stored channel is bent for the screen, so the first step undoes that bend
-// and gets the real amount of light. Those amounts are then split the way the
-// eye splits them, and the cube root stops a bright parent from crushing the mix.
+// toOKLab turns an sRGB colour into L, a, and b.
+// The channels are gamma-encoded, so they are linearised before the OKLab matrix.
 func toOKLab(colour rgb) lab {
 	red := linearise(colour.r)
 	green := linearise(colour.g)

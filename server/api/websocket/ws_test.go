@@ -2,11 +2,11 @@ package websocket
 
 import (
 	"context"
-	"encoding/json"
 	"net/http/httptest"
 	"strings"
 	"time"
 
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/mocks"
 	"game_of_life/server/internal/grid/source"
@@ -18,6 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/fx"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type fakeFrame struct {
@@ -30,11 +31,14 @@ func (f fakeFrame) Width() int           { return f.width }
 func (f fakeFrame) Height() int          { return f.height }
 func (f fakeFrame) Cells() []source.Cell { return f.cells }
 func (f fakeFrame) ToJson() ([]byte, error) {
-	return source.Encode(f)
+	return source.Encode(f, 0)
 }
 
 func openHandler(board grid.Grid) *handler {
 	GinkgoHelper()
+	if mocked, ok := board.(*mocks.MockGrid); ok {
+		ensureClock(mocked)
+	}
 	var api Handler
 	app := fx.New(
 		user.Module,
@@ -45,6 +49,15 @@ func openHandler(board grid.Grid) *handler {
 	)
 	Expect(app.Err()).NotTo(HaveOccurred())
 	return api.(*handler)
+}
+
+func ensureClock(board *mocks.MockGrid) {
+	for _, call := range board.ExpectedCalls {
+		if call.Method == "Clock" {
+			return
+		}
+	}
+	board.EXPECT().Clock().Return(true, int(lifepb.PaceBound_PACE_BOUND_MIN)).Maybe()
 }
 
 func testServer(board *mocks.MockGrid) (*httptest.Server, *handler) {
@@ -77,13 +90,12 @@ var _ = Describe("websocket", func() {
 		Expect(data).To(Equal(want))
 		Expect(h.conns()).To(HaveLen(1))
 
-		var presence struct {
-			Colours []string `json:"colours"`
-		}
-		Expect(json.Unmarshal(readMessage(conn, ctx), &presence)).To(Succeed())
+		var presence lifepb.ServerMessage
+		Expect(protojson.Unmarshal(readMessage(conn, ctx), &presence)).To(Succeed())
 		person, ok := h.svc.ByID("player-one")
 		Expect(ok).To(BeTrue())
-		Expect(presence.Colours).To(Equal([]string{person.Colour()}))
+		Expect(presence.GetType()).To(Equal(lifepb.MessageType_MESSAGE_TYPE_PEOPLE))
+		Expect(presence.GetPeople()).To(Equal([]string{person.Colour()}))
 	})
 
 	It("forwards later board updates", func() {
@@ -98,6 +110,7 @@ var _ = Describe("websocket", func() {
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(first).Once()
 		board.EXPECT().Updates().Return(stream)
+		board.EXPECT().Live().Return(true).Maybe()
 
 		h := openHandler(board)
 		engine := gin.New()
@@ -138,6 +151,7 @@ var _ = Describe("websocket", func() {
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(first).Times(2)
 		board.EXPECT().Updates().Return(stream)
+		board.EXPECT().Live().Return(true).Maybe()
 
 		h := openHandler(board)
 		engine := gin.New()
@@ -201,8 +215,10 @@ var _ = Describe("websocket", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(readBoard(conn, ctx)).To(Equal(want))
 
-		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{}`))).To(Succeed())
-		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"x":1,"y":0}`))).To(Succeed())
+		writeClient(conn, ctx, &lifepb.ClientMessage{})
+		writeClient(conn, ctx, &lifepb.ClientMessage{
+			Action: &lifepb.ClientMessage_Point{Point: &lifepb.Point{X: 1}},
+		})
 
 		placedJSON, err := placed.ToJson()
 		Expect(err).NotTo(HaveOccurred())
@@ -235,8 +251,11 @@ var _ = Describe("websocket", func() {
 		cleared := fakeFrame{width: 2, height: 2, cells: make([]source.Cell, 4)}
 		board := mocks.NewMockGrid(GinkgoT())
 		board.EXPECT().Current().Return(frame).Once()
+		board.EXPECT().SetRunning(false).Once()
 		board.EXPECT().Clear().Return(true).Once()
 		board.EXPECT().Current().Return(cleared).Once()
+		board.EXPECT().Clock().Return(true, int(lifepb.PaceBound_PACE_BOUND_MIN)).Once()
+		board.EXPECT().Clock().Return(false, int(lifepb.PaceBound_PACE_BOUND_MIN)).Once()
 		srv, _ := testServer(board)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -250,17 +269,19 @@ var _ = Describe("websocket", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(readBoard(conn, ctx)).To(Equal(want))
 
-		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"reset":true}`))).To(Succeed())
+		writeClient(conn, ctx, &lifepb.ClientMessage{
+			Action: &lifepb.ClientMessage_ResetBoard{ResetBoard: true},
+		})
 
 		clearedJSON, err := cleared.ToJson()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(readBoard(conn, ctx)).To(Equal(clearedJSON))
 
-		var notice struct {
-			Reset string `json:"reset"`
-		}
-		Expect(json.Unmarshal(readMessage(conn, ctx), &notice)).To(Succeed())
-		Expect(notice.Reset).To(Equal("#112D4E"))
+		var notice lifepb.ServerMessage
+		Expect(protojson.Unmarshal(readMessage(conn, ctx), &notice)).To(Succeed())
+		Expect(notice.GetType()).To(Equal(lifepb.MessageType_MESSAGE_TYPE_RESET))
+		Expect(notice.GetColour()).To(Equal("#112D4E"))
+		Expect(readClock(conn, ctx)).To(Equal(clockState{running: false, pace: int(lifepb.PaceBound_PACE_BOUND_MIN)}))
 	})
 
 	It("sets the colour the session asked for", func() {
@@ -281,22 +302,29 @@ var _ = Describe("websocket", func() {
 		DeferCleanup(conn.CloseNow)
 		_ = readBoard(conn, ctx)
 
-		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"colour":"#E58700"}`))).To(Succeed())
+		writeClient(conn, ctx, &lifepb.ClientMessage{
+			Action: &lifepb.ClientMessage_Colour{Colour: "#E58700"},
+		})
 
-		var you struct {
-			You string `json:"you"`
-		}
 		Eventually(func() string {
-			Expect(json.Unmarshal(readMessage(conn, ctx), &you)).To(Succeed())
-			return you.You
+			var you lifepb.ServerMessage
+			Expect(protojson.Unmarshal(readMessage(conn, ctx), &you)).To(Succeed())
+			if you.GetType() != lifepb.MessageType_MESSAGE_TYPE_YOU {
+				return ""
+			}
+			return you.GetColour()
 		}, time.Second, 10*time.Millisecond).Should(Equal("#E58700"))
+
+		Expect(readNotice(conn, ctx, lifepb.MessageType_MESSAGE_TYPE_CHANGED)).To(Equal("#E58700"))
 
 		person, ok := h.svc.ByID("player-one")
 		Expect(ok).To(BeTrue())
 		Expect(person.Colour()).To(Equal("#E58700"))
 		Expect(h.svc.Colours()).To(Equal([]string{"#E58700"}))
 
-		Expect(conn.Write(ctx, websocket.MessageText, []byte(`{"x":1,"y":0}`))).To(Succeed())
+		writeClient(conn, ctx, &lifepb.ClientMessage{
+			Action: &lifepb.ClientMessage_Point{Point: &lifepb.Point{X: 1}},
+		})
 		Expect(readBoard(conn, ctx)).NotTo(BeEmpty())
 	})
 
@@ -312,31 +340,33 @@ var _ = Describe("websocket", func() {
 		first, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(first.CloseNow)
-		Expect(readNotice(first, ctx, "entered")).To(Equal("#112D4E"))
+		Expect(readNotice(first, ctx, lifepb.MessageType_MESSAGE_TYPE_ENTERED)).To(Equal("#112D4E"))
 
 		second, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-two", nil)
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(func() { _ = second.CloseNow() })
-		Expect(readNotice(first, ctx, "entered")).To(Equal("#3F72AF"))
-		Expect(readNotice(second, ctx, "entered")).To(Equal("#3F72AF"))
+		Expect(readNotice(first, ctx, lifepb.MessageType_MESSAGE_TYPE_ENTERED)).To(Equal("#3F72AF"))
+		Expect(readNotice(second, ctx, lifepb.MessageType_MESSAGE_TYPE_ENTERED)).To(Equal("#3F72AF"))
 
 		extra, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(extra.CloseNow)
 		sawEntered := false
 		for {
-			var body map[string]any
-			Expect(json.Unmarshal(readMessage(first, ctx), &body)).To(Succeed())
-			if _, ok := body["entered"]; ok {
+			var body lifepb.ServerMessage
+			Expect(protojson.Unmarshal(readMessage(first, ctx), &body)).To(Succeed())
+			if body.GetType() == lifepb.MessageType_MESSAGE_TYPE_ENTERED {
 				sawEntered = true
 			}
-			if _, ok := body["you"]; ok {
+			if body.GetType() == lifepb.MessageType_MESSAGE_TYPE_YOU {
 				break
 			}
 		}
 		Expect(sawEntered).To(BeFalse())
 
-		Expect(second.Write(ctx, websocket.MessageText, []byte(`{"colour":"#E58700"}`))).To(Succeed())
+		writeClient(second, ctx, &lifepb.ClientMessage{
+			Action: &lifepb.ClientMessage_Colour{Colour: "#E58700"},
+		})
 		Eventually(func() string {
 			person, ok := h.svc.ByID("player-two")
 			if !ok {
@@ -345,17 +375,74 @@ var _ = Describe("websocket", func() {
 			return person.Colour()
 		}, time.Second, 10*time.Millisecond).Should(Equal("#E58700"))
 		Expect(second.Close(websocket.StatusNormalClosure, "")).To(Succeed())
-		Expect(readNotice(first, ctx, "exited")).To(Equal("#E58700"))
+		Expect(readNotice(first, ctx, lifepb.MessageType_MESSAGE_TYPE_EXITED)).To(Equal("#E58700"))
+	})
+
+	It("lets a session change the pace and stop the clock", func() {
+		frame := fakeFrame{width: 1, height: 1, cells: []source.Cell{{}}}
+		board := mocks.NewMockGrid(GinkgoT())
+		board.EXPECT().Current().Return(frame).Once()
+		board.EXPECT().Clock().Return(true, int(lifepb.PaceBound_PACE_BOUND_MIN)).Once()
+		board.EXPECT().SetPace(20).Return(true).Once()
+		board.EXPECT().Clock().Return(true, 20).Once()
+		board.EXPECT().SetRunning(false).Once()
+		board.EXPECT().Clock().Return(false, 20).Once()
+		srv, _ := testServer(board)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		DeferCleanup(cancel)
+
+		conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws?session=player-one", nil)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(conn.CloseNow)
+		Expect(readClock(conn, ctx)).To(Equal(clockState{running: true, pace: int(lifepb.PaceBound_PACE_BOUND_MIN)}))
+
+		writeClient(conn, ctx, &lifepb.ClientMessage{
+			Action: &lifepb.ClientMessage_Pace{Pace: 20},
+		})
+		Expect(readClock(conn, ctx)).To(Equal(clockState{running: true, pace: 20}))
+
+		writeClient(conn, ctx, &lifepb.ClientMessage{
+			Action: &lifepb.ClientMessage_Playback{Playback: lifepb.Playback_PLAYBACK_STOPPED},
+		})
+		Expect(readClock(conn, ctx)).To(Equal(clockState{running: false, pace: 20}))
 	})
 })
 
-func readNotice(conn *websocket.Conn, ctx context.Context, key string) string {
+type clockState struct {
+	running bool
+	pace    int
+}
+
+func readClock(conn *websocket.Conn, ctx context.Context) clockState {
 	GinkgoHelper()
 	for {
-		var body map[string]any
-		Expect(json.Unmarshal(readMessage(conn, ctx), &body)).To(Succeed())
-		if value, ok := body[key].(string); ok {
-			return value
+		var body lifepb.ServerMessage
+		Expect(protojson.Unmarshal(readMessage(conn, ctx), &body)).To(Succeed())
+		if body.GetType() != lifepb.MessageType_MESSAGE_TYPE_CLOCK {
+			continue
+		}
+		return clockState{
+			running: body.GetPlayback() == lifepb.Playback_PLAYBACK_RUNNING,
+			pace:    int(body.GetPace()),
+		}
+	}
+}
+
+func writeClient(conn *websocket.Conn, ctx context.Context, msg *lifepb.ClientMessage) {
+	GinkgoHelper()
+	payload, err := protojson.Marshal(msg)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(conn.Write(ctx, websocket.MessageText, payload)).To(Succeed())
+}
+
+func readNotice(conn *websocket.Conn, ctx context.Context, kind lifepb.MessageType) string {
+	GinkgoHelper()
+	for {
+		var body lifepb.ServerMessage
+		Expect(protojson.Unmarshal(readMessage(conn, ctx), &body)).To(Succeed())
+		if body.GetType() == kind {
+			return body.GetColour()
 		}
 	}
 }
@@ -371,9 +458,9 @@ func readBoard(conn *websocket.Conn, ctx context.Context) []byte {
 	GinkgoHelper()
 	for {
 		data := readMessage(conn, ctx)
-		var body map[string]any
-		Expect(json.Unmarshal(data, &body)).To(Succeed())
-		if _, ok := body["width"]; ok {
+		var body lifepb.ServerMessage
+		Expect(protojson.Unmarshal(data, &body)).To(Succeed())
+		if body.GetWidth() != 0 {
 			return data
 		}
 	}

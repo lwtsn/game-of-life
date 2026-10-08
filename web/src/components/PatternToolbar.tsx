@@ -1,51 +1,53 @@
-import { useState } from 'react'
+import type { DragEvent } from 'react'
 import type { Pattern } from '../gen/life/v1/pattern_pb.js'
 import { patternButtons } from './patterns.ts'
 
-type PatternToolbarProps = {
-  onPlace: (pattern: Pattern) => void
+function alive(cells: readonly (readonly number[])[], x: number, y: number) {
+  return cells.some(([cellX, cellY]) => cellX === x && cellY === y)
 }
 
-export function PatternToolbar({ onPlace }: PatternToolbarProps) {
-  const [open, setOpen] = useState(false)
+function hideDragImage(event: DragEvent<HTMLButtonElement>) {
+  const blank = document.createElement('canvas')
+  blank.width = 1
+  blank.height = 1
+  event.dataTransfer.setDragImage(blank, 0, 0)
+}
 
+export function PatternToolbar({ onDragPattern }: { onDragPattern: (pattern: Pattern | null) => void }) {
   return (
     <aside
       aria-label="Patterns"
-      className={`fixed inset-y-0 left-0 z-30 h-svh overflow-hidden border-r border-blue/30 bg-mist text-navy transition-[width] duration-200 ease-out ${open ? 'w-72' : 'w-11'}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      className="flex min-h-0 gap-2 overflow-x-auto border-b border-mist bg-paper px-4 py-3 md:flex-col md:items-center md:overflow-y-auto md:border-r md:border-b-0"
     >
-      {open ? (
-        <div className="flex h-full flex-col pt-4">
-          <p className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
-            Patterns
-          </p>
-          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-4">
-            {patternButtons.map((item) => (
-              <button
-                key={item.pattern}
-                type="button"
-                onClick={() => onPlace(item.pattern)}
-                className="shrink-0 border-l-2 border-transparent px-3 py-2 text-left text-sm hover:bg-paper"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
+      <p className="hidden text-[11px] font-semibold tracking-[0.18em] text-blue uppercase md:block">Patterns</p>
+      {patternButtons.map((item) => (
         <button
+          key={item.pattern}
           type="button"
-          aria-expanded={false}
-          className="flex h-full w-full items-center justify-center"
-          onClick={() => setOpen(true)}
+          draggable
+          onDragStart={(event) => {
+            event.dataTransfer.setData('text/plain', String(item.pattern))
+            event.dataTransfer.effectAllowed = 'copy'
+            hideDragImage(event)
+            onDragPattern(item.pattern)
+          }}
+          onDragEnd={() => onDragPattern(null)}
+          className="flex cursor-grab flex-col items-center gap-1 border border-mist p-2 text-sm active:cursor-grabbing"
         >
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] [writing-mode:vertical-rl]">
-            Patterns
+          <span
+            aria-hidden="true"
+            className="grid gap-px bg-mist"
+            style={{ gridTemplateColumns: `repeat(${item.width}, 12px)` }}
+          >
+            {Array.from({ length: item.width * item.height }, (_, index) => {
+              const x = index % item.width
+              const y = Math.floor(index / item.width)
+              return <span key={index} className={alive(item.cells, x, y) ? 'size-3 bg-navy' : 'size-3 bg-paper'} />
+            })}
           </span>
+          {item.label}
         </button>
-      )}
+      ))}
     </aside>
   )
 }

@@ -238,8 +238,11 @@ func (x *Catalogue) GetShapes() []*Shape {
 
 // PlaceRequest asks the server to stamp one pattern.
 type PlaceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pattern       Pattern                `protobuf:"varint,1,opt,name=pattern,proto3,enum=life.v1.Pattern" json:"pattern,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// pattern is the shape to stamp.
+	Pattern Pattern `protobuf:"varint,1,opt,name=pattern,proto3,enum=life.v1.Pattern" json:"pattern,omitempty"`
+	// origin is the top-left cell of the stamp. When it is absent the server chooses one.
+	Origin        *Offset `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -279,6 +282,13 @@ func (x *PlaceRequest) GetPattern() Pattern {
 		return x.Pattern
 	}
 	return Pattern_PATTERN_UNSPECIFIED
+}
+
+func (x *PlaceRequest) GetOrigin() *Offset {
+	if x != nil {
+		return x.Origin
+	}
+	return nil
 }
 
 // PlaceResponse reports where the stamp landed.
@@ -355,9 +365,10 @@ const file_life_v1_pattern_proto_rawDesc = "" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12%\n" +
 	"\x05cells\x18\x03 \x03(\v2\x0f.life.v1.OffsetR\x05cells\"3\n" +
 	"\tCatalogue\x12&\n" +
-	"\x06shapes\x18\x01 \x03(\v2\x0e.life.v1.ShapeR\x06shapes\":\n" +
+	"\x06shapes\x18\x01 \x03(\v2\x0e.life.v1.ShapeR\x06shapes\"c\n" +
 	"\fPlaceRequest\x12*\n" +
-	"\apattern\x18\x01 \x01(\x0e2\x10.life.v1.PatternR\apattern\"~\n" +
+	"\apattern\x18\x01 \x01(\x0e2\x10.life.v1.PatternR\apattern\x12'\n" +
+	"\x06origin\x18\x02 \x01(\v2\x0f.life.v1.OffsetR\x06origin\"~\n" +
 	"\rPlaceResponse\x12*\n" +
 	"\apattern\x18\x01 \x01(\x0e2\x10.life.v1.PatternR\apattern\x12'\n" +
 	"\x06origin\x18\x02 \x01(\v2\x0f.life.v1.OffsetR\x06origin\x12\x18\n" +
@@ -398,15 +409,16 @@ var file_life_v1_pattern_proto_depIdxs = []int32{
 	1, // 1: life.v1.Shape.cells:type_name -> life.v1.Offset
 	2, // 2: life.v1.Catalogue.shapes:type_name -> life.v1.Shape
 	0, // 3: life.v1.PlaceRequest.pattern:type_name -> life.v1.Pattern
-	0, // 4: life.v1.PlaceResponse.pattern:type_name -> life.v1.Pattern
-	1, // 5: life.v1.PlaceResponse.origin:type_name -> life.v1.Offset
-	4, // 6: life.v1.LayoutService.Place:input_type -> life.v1.PlaceRequest
-	5, // 7: life.v1.LayoutService.Place:output_type -> life.v1.PlaceResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	1, // 4: life.v1.PlaceRequest.origin:type_name -> life.v1.Offset
+	0, // 5: life.v1.PlaceResponse.pattern:type_name -> life.v1.Pattern
+	1, // 6: life.v1.PlaceResponse.origin:type_name -> life.v1.Offset
+	4, // 7: life.v1.LayoutService.Place:input_type -> life.v1.PlaceRequest
+	5, // 8: life.v1.LayoutService.Place:output_type -> life.v1.PlaceResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_life_v1_pattern_proto_init() }

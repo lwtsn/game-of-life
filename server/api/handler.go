@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 
-	"game_of_life/server/api/controls"
 	"game_of_life/server/api/websocket"
 
 	"github.com/gin-gonic/gin"
@@ -16,11 +15,9 @@ type Handler interface {
 }
 
 type handler struct {
-	sockets  websocket.Handler
-	controls controls.Handler
+	sockets websocket.Handler
 }
 
 func (h *handler) Run(ctx context.Context) {
-	h.controls.Bind(ctx)
 	h.sockets.Run(ctx)
 }

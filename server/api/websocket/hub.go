@@ -2,15 +2,16 @@ package websocket
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sync"
 
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/user"
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Handler is the board socket.
@@ -44,33 +45,44 @@ func (h *handler) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case payload := <-h.grid.Updates():
-			if h.writeAll(payload) {
-				h.broadcastColours()
+			h.writeMu.Lock()
+			if !h.grid.Live() {
+				h.writeMu.Unlock()
+				continue
+			}
+			failed := h.writeLocked(payload)
+			h.writeMu.Unlock()
+			for _, conn := range failed {
+				h.disconnect(conn)
+			}
+			if len(failed) > 0 {
+				h.broadcastPeople()
 			}
 		}
 	}
 }
 
-func (h *handler) broadcastColours() {
-	payload, err := h.colourPayload()
+func (h *handler) broadcastPeople() {
+	payload, err := h.peoplePayload()
 	if err != nil {
-		log.Printf("colours json: %v", err)
+		log.Printf("people json: %v", err)
 		return
 	}
 	if h.writeAll(payload) {
-		payload, err = h.colourPayload()
+		payload, err = h.peoplePayload()
 		if err != nil {
-			log.Printf("colours json: %v", err)
+			log.Printf("people json: %v", err)
 			return
 		}
 		h.writeAll(payload)
 	}
 }
 
-func (h *handler) colourPayload() ([]byte, error) {
-	return json.Marshal(struct {
-		Colours []string `json:"colours"`
-	}{Colours: h.svc.Colours()})
+func (h *handler) peoplePayload() ([]byte, error) {
+	return protojson.Marshal(&lifepb.ServerMessage{
+		Type:   lifepb.MessageType_MESSAGE_TYPE_PEOPLE,
+		People: h.svc.Colours(),
+	})
 }
 
 // Publish writes the current board to every connected socket.
@@ -84,14 +96,23 @@ func (h *handler) Publish() {
 }
 
 func (h *handler) writeAll(payload []byte) bool {
-	dropped := false
+	h.writeMu.Lock()
+	failed := h.writeLocked(payload)
+	h.writeMu.Unlock()
+	for _, conn := range failed {
+		h.disconnect(conn)
+	}
+	return len(failed) > 0
+}
+
+func (h *handler) writeLocked(payload []byte) []*websocket.Conn {
+	var failed []*websocket.Conn
 	for _, conn := range h.conns() {
-		if err := h.send(context.Background(), conn, payload); err != nil {
-			h.disconnect(conn)
-			dropped = true
+		if err := writeFrame(context.Background(), conn, payload); err != nil {
+			failed = append(failed, conn)
 		}
 	}
-	return dropped
+	return failed
 }
 
 func (h *handler) send(ctx context.Context, conn *websocket.Conn, payload []byte) error {

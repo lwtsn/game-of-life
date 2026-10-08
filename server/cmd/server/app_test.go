@@ -18,6 +18,11 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+const (
+	boardWidth  = int(lifepb.GridSize_GRID_SIZE_WIDTH)
+	boardHeight = int(lifepb.GridSize_GRID_SIZE_HEIGHT)
+)
+
 type socketCell struct {
 	Alive  bool   `json:"alive"`
 	ID     string `json:"id"`
@@ -75,7 +80,7 @@ var _ = Describe("server", func() {
 		second := readSocketFrame(conn, dialCtx)
 		expectFullGrid(first)
 		expectFullGrid(second)
-		Expect(first.Cells).To(Equal(make([]socketCell, 80*50)))
+		Expect(first.Cells).To(Equal(make([]socketCell, boardWidth*boardHeight)))
 		Expect(second.Cells).To(Equal(first.Cells))
 	})
 
@@ -106,20 +111,15 @@ var _ = Describe("server", func() {
 
 		places := [][2]int{{0, 0}, {1, 0}, {0, 1}, {1, 1}}
 		for _, xy := range places {
-			payload, err := json.Marshal(struct {
-				X int `json:"x"`
-				Y int `json:"y"`
-			}{X: xy[0], Y: xy[1]})
-			Expect(err).NotTo(HaveOccurred())
-			Expect(conn.Write(dialCtx, websocket.MessageText, payload)).To(Succeed())
+			writePoint(conn, dialCtx, xy[0], xy[1])
 		}
 
 		placed := readUntil(conn, dialCtx, func(frame socketFrame) bool {
-			if len(frame.Cells) != 80*50 {
+			if len(frame.Cells) != boardWidth*boardHeight {
 				return false
 			}
 			for _, xy := range places {
-				cell := frame.Cells[xy[1]*80+xy[0]]
+				cell := frame.Cells[xy[1]*boardWidth+xy[0]]
 				if !cell.Alive || cell.Colour != "#112D4E" || cell.ID != "player-one" {
 					return false
 				}
@@ -135,7 +135,7 @@ var _ = Describe("server", func() {
 
 		seen := readSocketFrame(other, dialCtx)
 		for _, xy := range places {
-			cell := seen.Cells[xy[1]*80+xy[0]]
+			cell := seen.Cells[xy[1]*boardWidth+xy[0]]
 			Expect(cell.Alive).To(BeTrue())
 			Expect(cell.Colour).To(Equal("#112D4E"))
 			Expect(cell.ID).To(Equal("player-one"))
@@ -168,23 +168,18 @@ var _ = Describe("server", func() {
 		_ = readSocketFrame(conn, dialCtx)
 
 		for _, xy := range [][2]int{{10, 10}, {11, 10}, {12, 10}} {
-			payload, err := json.Marshal(struct {
-				X int `json:"x"`
-				Y int `json:"y"`
-			}{X: xy[0], Y: xy[1]})
-			Expect(err).NotTo(HaveOccurred())
-			Expect(conn.Write(dialCtx, websocket.MessageText, payload)).To(Succeed())
+			writePoint(conn, dialCtx, xy[0], xy[1])
 		}
 
 		born := readUntil(conn, dialCtx, func(frame socketFrame) bool {
-			if len(frame.Cells) != 80*50 {
+			if len(frame.Cells) != boardWidth*boardHeight {
 				return false
 			}
-			birth := frame.Cells[9*80+11]
+			birth := frame.Cells[9*boardWidth+11]
 			return birth.Alive && birth.Colour == "#112D4E" && birth.ID == ""
 		})
 		expectFullGrid(born)
-		survivor := born.Cells[10*80+11]
+		survivor := born.Cells[10*boardWidth+11]
 		Expect(survivor.Alive).To(BeTrue())
 		Expect(survivor.Colour).To(Equal("#112D4E"))
 		Expect(survivor.ID).To(Equal("player-one"))
@@ -269,18 +264,18 @@ var _ = Describe("server", func() {
 
 		cells := [][2]int{{4, 5}, {5, 5}, {4, 6}, {5, 6}}
 		seen := readUntil(conn, dialCtx, func(frame socketFrame) bool {
-			if len(frame.Cells) != 80*50 {
+			if len(frame.Cells) != boardWidth*boardHeight {
 				return false
 			}
 			for _, xy := range cells {
-				cell := frame.Cells[xy[1]*80+xy[0]]
+				cell := frame.Cells[xy[1]*boardWidth+xy[0]]
 				if !cell.Alive || cell.Colour != "#112D4E" || cell.ID != "player-one" {
 					return false
 				}
 			}
 			return true
 		})
-		Expect(seen.Cells[5*80+4].Colour).To(Equal("#112D4E"))
+		Expect(seen.Cells[5*boardWidth+4].Colour).To(Equal("#112D4E"))
 	})
 
 	It("clears the board and names the colour that asked", func() {
@@ -313,14 +308,18 @@ var _ = Describe("server", func() {
 		Expect(string(body)).To(ContainSubstring(`"applied":true`))
 
 		_ = readUntil(conn, dialCtx, func(frame socketFrame) bool {
-			if len(frame.Cells) != 80*50 {
+			if len(frame.Cells) != boardWidth*boardHeight {
 				return false
 			}
-			cell := frame.Cells[5*80+4]
+			cell := frame.Cells[5*boardWidth+4]
 			return cell.Alive && cell.Colour == "#112D4E"
 		})
 
-		Expect(conn.Write(dialCtx, websocket.MessageText, []byte(`{"reset":true}`))).To(Succeed())
+		payload, err := protojson.Marshal(&lifepb.ClientMessage{
+			Action: &lifepb.ClientMessage_ResetBoard{ResetBoard: true},
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(conn.Write(dialCtx, websocket.MessageText, payload)).To(Succeed())
 
 		var cleared bool
 		var notice string
@@ -328,19 +327,15 @@ var _ = Describe("server", func() {
 			_, data, err := conn.Read(dialCtx)
 			Expect(err).NotTo(HaveOccurred())
 
-			var raw struct {
-				Width int          `json:"width"`
-				Cells []socketCell `json:"cells"`
-				Reset string       `json:"reset"`
+			var raw lifepb.ServerMessage
+			Expect(protojson.Unmarshal(data, &raw)).To(Succeed())
+			if raw.GetType() == lifepb.MessageType_MESSAGE_TYPE_RESET && raw.GetColour() == "#112D4E" {
+				notice = raw.GetColour()
 			}
-			Expect(json.Unmarshal(data, &raw)).To(Succeed())
-			if raw.Reset == "#112D4E" {
-				notice = raw.Reset
-			}
-			if raw.Width == 80 && len(raw.Cells) == 80*50 {
+			if int(raw.GetWidth()) == boardWidth && len(raw.GetCells()) == boardWidth*boardHeight {
 				alive := false
-				for _, cell := range raw.Cells {
-					if cell.Alive {
+				for _, cell := range raw.GetCells() {
+					if cell.GetAlive() {
 						alive = true
 						break
 					}
@@ -353,6 +348,15 @@ var _ = Describe("server", func() {
 		Expect(notice).To(Equal("#112D4E"))
 	})
 })
+
+func writePoint(conn *websocket.Conn, ctx context.Context, x, y int) {
+	GinkgoHelper()
+	payload, err := protojson.Marshal(&lifepb.ClientMessage{
+		Action: &lifepb.ClientMessage_Point{Point: &lifepb.Point{X: int32(x), Y: int32(y)}},
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(conn.Write(ctx, websocket.MessageText, payload)).To(Succeed())
+}
 
 func postPlace(srv *http.Server, body, session string) (*http.Response, []byte) {
 	GinkgoHelper()
@@ -398,7 +402,7 @@ func readUntil(conn *websocket.Conn, ctx context.Context, match func(socketFrame
 
 func expectFullGrid(frame socketFrame) {
 	GinkgoHelper()
-	Expect(frame.Width).To(Equal(80))
-	Expect(frame.Height).To(Equal(50))
-	Expect(frame.Cells).To(HaveLen(80 * 50))
+	Expect(frame.Width).To(Equal(boardWidth))
+	Expect(frame.Height).To(Equal(boardHeight))
+	Expect(frame.Cells).To(HaveLen(boardWidth * boardHeight))
 }

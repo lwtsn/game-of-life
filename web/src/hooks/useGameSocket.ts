@@ -1,4 +1,4 @@
-import useWebSocketImport, { ReadyState } from 'react-use-websocket'
+import useWebSocketImport from 'react-use-websocket'
 import { socketUrl } from '../api/socket.ts'
 
 type UseWebSocket = typeof useWebSocketImport
@@ -34,7 +34,5 @@ export function useGameSocket() {
     url.length > 0,
   )
 
-  return { socketUrl: url, ...socket }
+  return socket
 }
-
-export { ReadyState }

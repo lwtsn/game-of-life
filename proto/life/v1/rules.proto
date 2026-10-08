@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+package life.v1;
+
+option go_package = "game_of_life/server/gen/life/v1;lifepb";
+
+// Rules holds the strings both sides match. The defaults are the contract.
+message Rules {
+  // session_pattern matches a session id.
+  optional string session_pattern = 1 [default = "^[A-Za-z0-9-]{8,64}$"];
+  // colour_pattern matches a stored hex colour.
+  optional string colour_pattern = 2 [default = "^#[0-9A-Fa-f]{6}$"];
+}

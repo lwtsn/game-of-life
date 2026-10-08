@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	lifepb "game_of_life/server/gen/life/v1"
 	"game_of_life/server/internal/grid/source"
 	"game_of_life/server/internal/user"
 )
@@ -18,6 +19,11 @@ type Grid interface {
 	Place(x, y int, person user.User) bool
 	PlaceAll(points []Point, person user.User) bool
 	Clear() bool
+	SetPace(perSecond int) bool
+	SetRunning(on bool)
+	Clock() (running bool, pace int)
+	// Live reports whether the board waiting in Updates is still the one to send.
+	Live() bool
 }
 
 // Point is a column and a row on the board.
@@ -30,28 +36,38 @@ type snapshot struct {
 	width  int
 	height int
 	cells  []source.Cell
+	frame  int
 }
 
 func (s snapshot) Width() int           { return s.width }
 func (s snapshot) Height() int          { return s.height }
 func (s snapshot) Cells() []source.Cell { return s.cells }
 func (s snapshot) ToJson() ([]byte, error) {
-	return source.Encode(s)
+	return source.Encode(s, s.frame)
 }
 
 type grid struct {
 	src     source.Source
 	current source.Frame
 	updates chan []byte
+	wake    chan struct{}
 
-	mu      sync.Mutex
-	running bool
+	mu         sync.Mutex
+	started    bool
+	simulating bool
+	perSecond  int
+	frame      int
+	seq        uint64
+	queuedSeq  uint64
 }
 
 func newGrid(src source.Source) *grid {
 	g := &grid{
-		src:     src,
-		updates: make(chan []byte, 1),
+		src:        src,
+		updates:    make(chan []byte, 1),
+		wake:       make(chan struct{}, 1),
+		simulating: true,
+		perSecond:  int(lifepb.PaceBound_PACE_BOUND_MIN),
 	}
 	g.Advance()
 	return g
@@ -66,11 +82,15 @@ func (g *grid) Current() source.Frame {
 func (g *grid) Advance() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	next := g.src.Next(g.current)
+	g.take(g.src.Next(g.current))
+}
+
+func (g *grid) take(next source.Frame) {
 	g.current = snapshot{
 		width:  next.Width(),
 		height: next.Height(),
 		cells:  append([]source.Cell(nil), next.Cells()...),
+		frame:  g.frame,
 	}
 }
 
@@ -98,7 +118,8 @@ func (g *grid) Place(x, y int, person user.User) bool {
 	}
 	cells := append([]source.Cell(nil), g.current.Cells()...)
 	cells[y*width+x] = placed(person)
-	g.current = snapshot{width: width, height: height, cells: cells}
+	g.current = snapshot{width: width, height: height, cells: cells, frame: g.frame}
+	g.supersedeLocked()
 	return true
 }
 
@@ -121,7 +142,8 @@ func (g *grid) PlaceAll(points []Point, person user.User) bool {
 	for _, point := range points {
 		cells[point.Y*width+point.X] = placed(person)
 	}
-	g.current = snapshot{width: width, height: height, cells: cells}
+	g.current = snapshot{width: width, height: height, cells: cells, frame: g.frame}
+	g.supersedeLocked()
 	return true
 }
 
@@ -139,50 +161,170 @@ func (g *grid) Clear() bool {
 		width:  width,
 		height: height,
 		cells:  make([]source.Cell, width*height),
+		frame:  g.frame,
 	}
+	g.supersedeLocked()
 	return true
+}
+
+// SetPace stores how many generations pass in one second.
+// It returns false when perSecond is outside the shared bounds.
+func (g *grid) SetPace(perSecond int) bool {
+	if perSecond < int(lifepb.PaceBound_PACE_BOUND_MIN) || perSecond > int(lifepb.PaceBound_PACE_BOUND_MAX) {
+		return false
+	}
+	g.mu.Lock()
+	g.perSecond = perSecond
+	g.mu.Unlock()
+	g.ping()
+	return true
+}
+
+// SetRunning starts or stops the clock. The loop keeps running either way.
+// Stopping discards a board the hub has not taken yet.
+func (g *grid) SetRunning(on bool) {
+	g.mu.Lock()
+	g.simulating = on
+	if !on {
+		g.discardLocked()
+	}
+	g.mu.Unlock()
+	g.ping()
+}
+
+func (g *grid) discardLocked() {
+	for {
+		select {
+		case <-g.updates:
+		default:
+			return
+		}
+	}
+}
+
+// supersedeLocked drops a generation queued before this edit, so the hub does not paint it afterwards.
+func (g *grid) supersedeLocked() {
+	g.seq++
+	g.discardLocked()
+}
+
+// Live reports whether the payload just taken from Updates is still current.
+func (g *grid) Live() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.queuedSeq == g.seq
+}
+
+// Clock reports whether the board is stepping and the generations per second.
+func (g *grid) Clock() (running bool, pace int) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.simulating, g.perSecond
+}
+
+func (g *grid) ping() {
+	select {
+	case g.wake <- struct{}{}:
+	default:
+	}
+}
+
+func (g *grid) interval() time.Duration {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return time.Second / time.Duration(g.perSecond)
+}
+
+func (g *grid) simulatingNow() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.simulating
 }
 
 // Start runs the simulation until ctx is cancelled. A second call does nothing.
 func (g *grid) Start(ctx context.Context) {
 	g.mu.Lock()
-	if g.running {
+	if g.started {
 		g.mu.Unlock()
 		return
 	}
-	g.running = true
+	g.started = true
 	g.mu.Unlock()
 
-	go func() {
-		g.notify()
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				g.Advance()
-				g.notify()
-			}
-		}
-	}()
+	go g.loop(ctx)
 }
 
-func (g *grid) notify() {
+func (g *grid) loop(ctx context.Context) {
+	g.notify()
+	var ticker *time.Ticker
+	var tick <-chan time.Time
+	if g.simulatingNow() {
+		ticker = time.NewTicker(g.interval())
+		tick = ticker.C
+	}
+	defer func() {
+		if ticker != nil {
+			ticker.Stop()
+		}
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-g.wake:
+			if ticker != nil {
+				ticker.Stop()
+				ticker = nil
+			}
+			tick = nil
+			if g.simulatingNow() {
+				ticker = time.NewTicker(g.interval())
+				tick = ticker.C
+			}
+		case <-tick:
+			g.step()
+		}
+	}
+}
+
+// step advances one generation and queues it. It does nothing once the clock is stopped, and it holds the lock across the queue send so a stop cannot leave that board behind.
+func (g *grid) step() {
 	g.mu.Lock()
-	current := g.current
-	g.mu.Unlock()
-	if current == nil {
+	defer g.mu.Unlock()
+	if !g.simulating || g.current == nil {
 		return
 	}
-	payload, err := current.ToJson()
+	g.frame++
+	g.take(g.src.Next(g.current))
+	if len(g.updates) > 0 {
+		return
+	}
+	payload, err := g.current.ToJson()
 	if err != nil {
 		log.Printf("grid json: %v", err)
 		return
 	}
 	select {
 	case g.updates <- payload:
+		g.queuedSeq = g.seq
+	default:
+	}
+}
+
+func (g *grid) notify() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.updates) > 0 || g.current == nil {
+		return
+	}
+	payload, err := g.current.ToJson()
+	if err != nil {
+		log.Printf("grid json: %v", err)
+		return
+	}
+	select {
+	case g.updates <- payload:
+		g.queuedSeq = g.seq
 	default:
 	}
 }

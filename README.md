@@ -38,7 +38,7 @@ Open http://localhost:8080. The same process serves the built files and the sock
 
 The page stores a session id in localStorage and sends it on the socket, and the server keeps one colour for that id. A refresh uses the same id, so the colour stays. A private window is a second person. Two tabs in the same window share the id and stay one person.
 
-Each socket receives the whole board on connect and again after every change. The grid advances one step a second, a new live cell takes the average colour of the three neighbours that produced it, and the toolbar places Block, Blinker, Glider, or Beacon through Connect `Place`.
+Each socket receives the whole board on connect and when the board changes. The clock starts at one generation a second. Any session can change that pace, from one to one hundred a second, or stop it. A new live cell takes the average colour of the three neighbours that produced it, and the toolbar places Block, Blinker, Glider, or Beacon through Connect `Place`.
 
 ## Bench
 

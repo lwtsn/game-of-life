@@ -6,11 +6,32 @@ export { COLS, ROWS }
 export const GAP = 1
 
 export const patternButtons = [
-  { pattern: Pattern.BLOCK, label: 'Block' },
-  { pattern: Pattern.BLINKER, label: 'Blinker' },
-  { pattern: Pattern.GLIDER, label: 'Glider' },
-  { pattern: Pattern.BEACON, label: 'Beacon' },
+  { pattern: Pattern.BLOCK, label: 'Block', width: 2, height: 2, cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  { pattern: Pattern.BLINKER, label: 'Blinker', width: 3, height: 2, cells: [[0, 1], [1, 1], [2, 1]] },
+  { pattern: Pattern.GLIDER, label: 'Glider', width: 3, height: 3, cells: [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]] },
+  {
+    pattern: Pattern.BEACON,
+    label: 'Beacon',
+    width: 4,
+    height: 4,
+    cells: [[0, 0], [1, 0], [0, 1], [1, 1], [2, 2], [3, 2], [2, 3], [3, 3]],
+  },
 ] as const
+
+export function stampOrigin(col: number, row: number, width: number, height: number) {
+  return {
+    x: Math.max(0, Math.min(col, COLS - width)),
+    y: Math.max(0, Math.min(row, ROWS - height)),
+  }
+}
+
+export function cellNear(x: number, y: number, cell: number) {
+  if (cell <= 0) return null
+  const step = cell + GAP
+  const col = Math.min(COLS - 1, Math.max(0, Math.floor(x / step)))
+  const row = Math.min(ROWS - 1, Math.max(0, Math.floor(y / step)))
+  return row * COLS + col
+}
 
 export function cellAtPoint(x: number, y: number, cell: number) {
   if (cell <= 0) return null

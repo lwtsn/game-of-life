@@ -86,9 +86,18 @@ export declare const CatalogueSchema: GenMessage<Catalogue>;
  */
 export declare type PlaceRequest = Message<"life.v1.PlaceRequest"> & {
   /**
+   * pattern is the shape to stamp.
+   *
    * @generated from field: life.v1.Pattern pattern = 1;
    */
   pattern: Pattern;
+
+  /**
+   * origin is the top-left cell of the stamp. When it is absent the server chooses one.
+   *
+   * @generated from field: life.v1.Offset origin = 2;
+   */
+  origin?: Offset | undefined;
 };
 
 /**

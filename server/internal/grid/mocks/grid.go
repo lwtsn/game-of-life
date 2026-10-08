@@ -126,6 +126,59 @@ func (_c *MockGrid_Clear_Call) RunAndReturn(run func() bool) *MockGrid_Clear_Cal
 	return _c
 }
 
+// Clock provides a mock function for the type MockGrid
+func (_mock *MockGrid) Clock() (bool, int) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Clock")
+	}
+
+	var r0 bool
+	var r1 int
+	if returnFunc, ok := ret.Get(0).(func() (bool, int)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() bool); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func() int); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	return r0, r1
+}
+
+// MockGrid_Clock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Clock'
+type MockGrid_Clock_Call struct {
+	*mock.Call
+}
+
+// Clock is a helper method to define mock.On call
+func (_e *MockGrid_Expecter) Clock() *MockGrid_Clock_Call {
+	return &MockGrid_Clock_Call{Call: _e.mock.On("Clock")}
+}
+
+func (_c *MockGrid_Clock_Call) Run(run func()) *MockGrid_Clock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockGrid_Clock_Call) Return(running bool, pace int) *MockGrid_Clock_Call {
+	_c.Call.Return(running, pace)
+	return _c
+}
+
+func (_c *MockGrid_Clock_Call) RunAndReturn(run func() (bool, int)) *MockGrid_Clock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Current provides a mock function for the type MockGrid
 func (_mock *MockGrid) Current() source.Frame {
 	ret := _mock.Called()
@@ -168,6 +221,50 @@ func (_c *MockGrid_Current_Call) Return(frame source.Frame) *MockGrid_Current_Ca
 }
 
 func (_c *MockGrid_Current_Call) RunAndReturn(run func() source.Frame) *MockGrid_Current_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Live provides a mock function for the type MockGrid
+func (_mock *MockGrid) Live() bool {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Live")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func() bool); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockGrid_Live_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Live'
+type MockGrid_Live_Call struct {
+	*mock.Call
+}
+
+// Live is a helper method to define mock.On call
+func (_e *MockGrid_Expecter) Live() *MockGrid_Live_Call {
+	return &MockGrid_Live_Call{Call: _e.mock.On("Live")}
+}
+
+func (_c *MockGrid_Live_Call) Run(run func()) *MockGrid_Live_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockGrid_Live_Call) Return(b bool) *MockGrid_Live_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockGrid_Live_Call) RunAndReturn(run func() bool) *MockGrid_Live_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -289,6 +386,97 @@ func (_c *MockGrid_PlaceAll_Call) Return(b bool) *MockGrid_PlaceAll_Call {
 
 func (_c *MockGrid_PlaceAll_Call) RunAndReturn(run func(points []grid.Point, person user.User) bool) *MockGrid_PlaceAll_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// SetPace provides a mock function for the type MockGrid
+func (_mock *MockGrid) SetPace(perSecond int) bool {
+	ret := _mock.Called(perSecond)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetPace")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(int) bool); ok {
+		r0 = returnFunc(perSecond)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockGrid_SetPace_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPace'
+type MockGrid_SetPace_Call struct {
+	*mock.Call
+}
+
+// SetPace is a helper method to define mock.On call
+//   - perSecond int
+func (_e *MockGrid_Expecter) SetPace(perSecond any) *MockGrid_SetPace_Call {
+	return &MockGrid_SetPace_Call{Call: _e.mock.On("SetPace", perSecond)}
+}
+
+func (_c *MockGrid_SetPace_Call) Run(run func(perSecond int)) *MockGrid_SetPace_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 int
+		if args[0] != nil {
+			arg0 = args[0].(int)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGrid_SetPace_Call) Return(b bool) *MockGrid_SetPace_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockGrid_SetPace_Call) RunAndReturn(run func(perSecond int) bool) *MockGrid_SetPace_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetRunning provides a mock function for the type MockGrid
+func (_mock *MockGrid) SetRunning(on bool) {
+	_mock.Called(on)
+	return
+}
+
+// MockGrid_SetRunning_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetRunning'
+type MockGrid_SetRunning_Call struct {
+	*mock.Call
+}
+
+// SetRunning is a helper method to define mock.On call
+//   - on bool
+func (_e *MockGrid_Expecter) SetRunning(on any) *MockGrid_SetRunning_Call {
+	return &MockGrid_SetRunning_Call{Call: _e.mock.On("SetRunning", on)}
+}
+
+func (_c *MockGrid_SetRunning_Call) Run(run func(on bool)) *MockGrid_SetRunning_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 bool
+		if args[0] != nil {
+			arg0 = args[0].(bool)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGrid_SetRunning_Call) Return() *MockGrid_SetRunning_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockGrid_SetRunning_Call) RunAndReturn(run func(on bool)) *MockGrid_SetRunning_Call {
+	_c.Run(run)
 	return _c
 }
 

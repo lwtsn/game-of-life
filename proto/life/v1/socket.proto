@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package life.v1;
+
+option go_package = "game_of_life/server/gen/life/v1;lifepb";
+
+// MessageType names one server socket message.
+enum MessageType {
+  // MESSAGE_TYPE_UNSPECIFIED is not a message the server sends.
+  MESSAGE_TYPE_UNSPECIFIED = 0;
+  // MESSAGE_TYPE_BOARD is the full grid.
+  MESSAGE_TYPE_BOARD = 1;
+  // MESSAGE_TYPE_PEOPLE is the hex of each person who is online.
+  MESSAGE_TYPE_PEOPLE = 2;
+  // MESSAGE_TYPE_YOU is this session's current hex.
+  MESSAGE_TYPE_YOU = 3;
+  // MESSAGE_TYPE_RESET says which hex cleared the board.
+  MESSAGE_TYPE_RESET = 4;
+  // MESSAGE_TYPE_ENTERED says which hex opened its first socket.
+  MESSAGE_TYPE_ENTERED = 5;
+  // MESSAGE_TYPE_EXITED says which hex closed its last socket.
+  MESSAGE_TYPE_EXITED = 6;
+  // MESSAGE_TYPE_CLOCK is the shared pace and whether the board is stepping.
+  MESSAGE_TYPE_CLOCK = 7;
+  // MESSAGE_TYPE_CHANGED says which hex a session just chose.
+  MESSAGE_TYPE_CHANGED = 8;
+}
+
+// PaceBound is the slowest and fastest pace the server accepts, in generations per second.
+enum PaceBound {
+  // PACE_BOUND_UNSPECIFIED is not a rate.
+  PACE_BOUND_UNSPECIFIED = 0;
+  // PACE_BOUND_MIN is the slowest rate the server accepts.
+  PACE_BOUND_MIN = 1;
+  // PACE_BOUND_MAX is the fastest rate the server accepts.
+  PACE_BOUND_MAX = 100;
+}
+
+// Playback says whether the shared clock is stepping.
+enum Playback {
+  // PLAYBACK_UNSPECIFIED is not a command the server accepts.
+  PLAYBACK_UNSPECIFIED = 0;
+  // PLAYBACK_STOPPED holds the board on the current generation.
+  PLAYBACK_STOPPED = 1;
+  // PLAYBACK_RUNNING lets the clock step.
+  PLAYBACK_RUNNING = 2;
+}
+
+// GridSize is the board. The numbers are the width and the height.
+enum GridSize {
+  // GRID_SIZE_UNSPECIFIED is not a dimension.
+  GRID_SIZE_UNSPECIFIED = 0;
+  // GRID_SIZE_HEIGHT is the number of rows.
+  GRID_SIZE_HEIGHT = 50;
+  // GRID_SIZE_WIDTH is the number of columns.
+  GRID_SIZE_WIDTH = 80;
+}
+
+// Cell is one square on the board.
+message Cell {
+  // alive is the Conway state. It is omitted when the square is dead.
+  bool alive = 1;
+  // id is the session that placed the square. It is omitted when the rules created it.
+  string id = 2;
+  // colour is the stored hex. It is omitted when the square has none.
+  string colour = 3;
+}
+
+// ServerMessage is one JSON message the server writes on the socket.
+message ServerMessage {
+  // type says which message this is.
+  MessageType type = 1;
+  // width is the column count. It is set on a board message.
+  int32 width = 2;
+  // height is the row count. It is set on a board message.
+  int32 height = 3;
+  // cells is the full board, row by row. It is set on a board message.
+  repeated Cell cells = 4;
+  // people is the hex of each online person. It is set on a people message.
+  repeated string people = 5;
+  // colour is the hex named by you, reset, entered, exited, and changed.
+  string colour = 6;
+  // pace is the generations per second. It is set on a clock message.
+  int32 pace = 7;
+  // playback says whether the clock is stepping. It is set on a clock message.
+  Playback playback = 8;
+  // frame is the generation on a board message. It starts at zero and increments once per step.
+  int32 frame = 9;
+}
+
+// Point is one cell the browser asked to paint.
+// A point that is present with no coordinates is column 0, row 0.
+message Point {
+  // x is the column.
+  int32 x = 1;
+  // y is the row. It grows downward.
+  int32 y = 2;
+}
+
+// ClientMessage is one JSON message the browser writes on the socket.
+message ClientMessage {
+  // action is the click, the board clear, the new colour, the pace, or playback.
+  oneof action {
+    // point paints one cell.
+    Point point = 1;
+    // reset_board clears the board.
+    bool reset_board = 2;
+    // colour is the hex this session wants.
+    string colour = 3;
+    // pace sets how many generations pass in one second.
+    int32 pace = 4;
+    // playback starts or stops the shared clock.
+    Playback playback = 5;
+  }
+}

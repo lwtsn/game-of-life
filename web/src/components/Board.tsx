@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import type { Cell } from '../api/grid.ts'
-import { boardSize, cellAtPoint, cellsAlong, COLS, fitCell, GAP, ROWS } from './patterns.ts'
+import type { Pattern } from '../gen/life/v1/pattern_pb.js'
+import { boardSize, cellAtPoint, cellNear, cellsAlong, COLS, fitCell, GAP, patternButtons, ROWS, stampOrigin } from './patterns.ts'
 
 const DEAD = '#DBE2EF'
 const ALIVE = '#112D4E'
 const GAP_COLOR = '#F9F7F7'
 
-function draw(context: CanvasRenderingContext2D, cell: number, cells: Cell[] | null) {
+type Ghost = { pattern: Pattern; x: number; y: number }
+
+function draw(context: CanvasRenderingContext2D, cell: number, cells: Cell[] | null, ghost: Ghost | null, colour: string) {
   const { width, height } = boardSize(cell)
   context.fillStyle = GAP_COLOR
   context.fillRect(0, 0, width, height)
@@ -19,6 +22,21 @@ function draw(context: CanvasRenderingContext2D, cell: number, cells: Cell[] | n
       context.fillRect(x * step, y * step, cell, cell)
     }
   }
+
+  const shape = ghost ? patternButtons.find((item) => item.pattern === ghost.pattern) : undefined
+  if (!ghost || !shape) return
+  context.save()
+  context.globalAlpha = 0.8
+  context.fillStyle = colour
+  context.strokeStyle = ALIVE
+  context.lineWidth = 1
+  for (const [dx, dy] of shape.cells) {
+    const x = ghost.x + dx
+    const y = ghost.y + dy
+    context.fillRect(x * step, y * step, cell, cell)
+    context.strokeRect(x * step + 0.5, y * step + 0.5, cell - 1, cell - 1)
+  }
+  context.restore()
 }
 
 function placedIndexes(cells: Cell[] | null) {
@@ -32,15 +50,20 @@ function placedIndexes(cells: Cell[] | null) {
 
 type BoardProps = {
   cells: Cell[] | null
+  colour?: string
+  dragPattern?: Pattern | null
   onPlace: (x: number, y: number) => void
+  onStamp?: (pattern: Pattern, x: number, y: number) => void
 }
 
-export function Board({ cells, onPlace }: BoardProps) {
+export function Board({ cells, colour = ALIVE, dragPattern = null, onPlace, onStamp }: BoardProps) {
   const frameRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const painting = useRef(false)
   const lastCell = useRef<{ col: number; row: number } | null>(null)
+  const ghostKey = useRef('')
   const [cell, setCell] = useState(12)
+  const [ghost, setGhost] = useState<Ghost | null>(null)
 
   useEffect(() => {
     const frame = frameRef.current
@@ -74,8 +97,8 @@ export function Board({ cells, onPlace }: BoardProps) {
     canvas.style.width = `${width}px`
     canvas.style.height = `${height}px`
     context.setTransform(ratio, 0, 0, ratio, 0, 0)
-    draw(context, cell, cells)
-  }, [cell, cells])
+    draw(context, cell, cells, ghost, colour)
+  }, [cell, cells, ghost, colour])
 
   function paintAt(clientX: number, clientY: number) {
     const canvas = canvasRef.current
@@ -114,6 +137,48 @@ export function Board({ cells, onPlace }: BoardProps) {
     lastCell.current = null
   }
 
+  function originAt(clientX: number, clientY: number, pattern: Pattern) {
+    const canvas = canvasRef.current
+    const shape = patternButtons.find((item) => item.pattern === pattern)
+    if (!canvas || !shape) return null
+    const rect = canvas.getBoundingClientRect()
+    const index = cellNear(clientX - rect.left, clientY - rect.top, cell)
+    if (index === null) return null
+    const origin = stampOrigin(index % COLS, Math.floor(index / COLS), shape.width, shape.height)
+    return { pattern, x: origin.x, y: origin.y }
+  }
+
+  function showGhost(clientX: number, clientY: number) {
+    if (dragPattern === null) return
+    const next = originAt(clientX, clientY, dragPattern)
+    const key = next ? `${next.pattern}:${next.x}:${next.y}` : ''
+    if (key === ghostKey.current) return
+    ghostKey.current = key
+    setGhost(next)
+  }
+
+  function clearGhost() {
+    if (ghostKey.current === '') return
+    ghostKey.current = ''
+    setGhost(null)
+  }
+
+  function onDragOver(event: DragEvent<HTMLCanvasElement>) {
+    event.preventDefault()
+    showGhost(event.clientX, event.clientY)
+  }
+
+  function onDrop(event: DragEvent<HTMLCanvasElement>) {
+    event.preventDefault()
+    const carried = Number(event.dataTransfer.getData('text/plain'))
+    const pattern = patternButtons.some((item) => item.pattern === carried) ? (carried as Pattern) : dragPattern
+    clearGhost()
+    if (pattern === null || !onStamp) return
+    const origin = originAt(event.clientX, event.clientY, pattern)
+    if (!origin) return
+    onStamp(origin.pattern, origin.x, origin.y)
+  }
+
   const marked = placedIndexes(cells)
   const label =
     marked.length === 0
@@ -121,7 +186,7 @@ export function Board({ cells, onPlace }: BoardProps) {
       : `Game of Life board, cells ${marked.join(' ')} highlighted`
 
   return (
-    <div ref={frameRef} className="flex h-svh w-full items-center justify-center px-16 py-8">
+    <div ref={frameRef} className="flex h-full min-h-0 w-full items-center justify-center p-4">
       <canvas
         ref={canvasRef}
         role="img"
@@ -131,6 +196,9 @@ export function Board({ cells, onPlace }: BoardProps) {
         onPointerMove={onPointerMove}
         onPointerUp={stopPainting}
         onPointerCancel={stopPainting}
+        onDragOver={onDragOver}
+        onDragLeave={clearGhost}
+        onDrop={onDrop}
       />
     </div>
   )
