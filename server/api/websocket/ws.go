@@ -19,16 +19,16 @@ func (h *handler) Serve(c *gin.Context) {
 	}
 	conn.SetReadLimit(1024)
 
-	h.people.Track(c.Request, conn)
+	h.track(c.Request, conn)
 
 	payload, err := h.grid.Current().ToJson()
 	if err != nil {
 		log.Printf("grid json: %v", err)
-		h.people.Disconnect(conn)
+		h.disconnect(conn)
 		return
 	}
 	if err := h.send(c.Request.Context(), conn, payload); err != nil {
-		h.people.Disconnect(conn)
+		h.disconnect(conn)
 		return
 	}
 	h.broadcastColours()
@@ -36,7 +36,7 @@ func (h *handler) Serve(c *gin.Context) {
 	for {
 		_, _, err := conn.Read(c.Request.Context())
 		if err != nil {
-			h.people.Disconnect(conn)
+			h.disconnect(conn)
 			h.broadcastColours()
 			return
 		}

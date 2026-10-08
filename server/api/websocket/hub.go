@@ -6,8 +6,8 @@ import (
 	"log"
 	"sync"
 
-	"game_of_life/server/api/users"
 	"game_of_life/server/internal/grid"
+	"game_of_life/server/internal/user/service"
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
@@ -20,14 +20,20 @@ type Handler interface {
 }
 
 type handler struct {
-	grid   grid.Grid
-	people users.Tracker
+	grid    grid.Grid
+	svc     service.Service
+	mu      sync.Mutex
+	clients map[string]*websocket.Conn
 
 	writeMu sync.Mutex
 }
 
-func New(board grid.Grid, people users.Tracker) Handler {
-	return &handler{grid: board, people: people}
+func New(board grid.Grid, svc service.Service) Handler {
+	return &handler{
+		grid:    board,
+		svc:     svc,
+		clients: make(map[string]*websocket.Conn),
+	}
 }
 
 // Run writes each board update to the connected users until ctx is cancelled.
@@ -63,14 +69,14 @@ func (h *handler) broadcastColours() {
 func (h *handler) colourPayload() ([]byte, error) {
 	return json.Marshal(struct {
 		Colours []string `json:"colours"`
-	}{Colours: h.people.Colours()})
+	}{Colours: h.svc.Colours()})
 }
 
 func (h *handler) writeAll(payload []byte) bool {
 	dropped := false
-	for _, conn := range h.people.Conns() {
+	for _, conn := range h.conns() {
 		if err := h.send(context.Background(), conn, payload); err != nil {
-			h.people.Disconnect(conn)
+			h.disconnect(conn)
 			dropped = true
 		}
 	}
