@@ -19,9 +19,9 @@ export function useGrid() {
     sendJsonMessage({ reset: true })
   }
 
-  function recolour() {
-    sendJsonMessage({ recolour: true })
+  function chooseColour(colour: string) {
+    sendJsonMessage({ colour })
   }
 
-  return { cells, place, reset, recolour }
+  return { cells, place, reset, chooseColour }
 }
