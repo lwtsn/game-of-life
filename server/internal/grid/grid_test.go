@@ -80,6 +80,27 @@ var _ = Describe("Grid", func() {
 		Expect(string(payload)).To(ContainSubstring(person.IP()))
 	})
 
+	It("places the person on every cell of a shape", func() {
+		frame := snapshot{width: 3, height: 3, cells: make([]source.Cell, 9)}
+		src := mocks.NewMockSource(GinkgoT())
+		src.EXPECT().Next(nil).Return(frame).Once()
+
+		board := gridFrom(src)
+		person := user.New("198.51.100.10")
+		points := []Point{{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 0, Y: 1}, {X: 1, Y: 1}}
+		Expect(board.PlaceAll(points, person)).To(BeTrue())
+		Expect(board.PlaceAll([]Point{{X: 0, Y: 0}, {X: 3, Y: 0}}, person)).To(BeFalse())
+		Expect(board.PlaceAll(nil, person)).To(BeFalse())
+		Expect(board.PlaceAll([]Point{{X: 0, Y: 0}}, nil)).To(BeFalse())
+
+		got := board.Current().Cells()
+		Expect(got[0]).To(Equal(source.Cell{Alive: true, User: person}))
+		Expect(got[1]).To(Equal(source.Cell{Alive: true, User: person}))
+		Expect(got[3]).To(Equal(source.Cell{Alive: true, User: person}))
+		Expect(got[4]).To(Equal(source.Cell{Alive: true, User: person}))
+		Expect(got[2].Alive).To(BeFalse())
+	})
+
 	It("publishes the current board when started", func() {
 		frame := snapshot{width: 2, height: 2, cells: []source.Cell{{Alive: true}, {}, {}, {Alive: true}}}
 		src := mocks.NewMockSource(GinkgoT())

@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package life.v1;
+
+option go_package = "game_of_life/server/gen/life/v1;lifepb";
+
+// Pattern is a shape the page can ask the server to stamp.
+enum Pattern {
+  PATTERN_UNSPECIFIED = 0;
+  PATTERN_BLOCK = 1;
+  PATTERN_BLINKER = 2;
+  PATTERN_GLIDER = 3;
+  PATTERN_BEACON = 4;
+}
+
+// Offset is a cell relative to the top-left of a shape. Y grows downward.
+message Offset {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+// Shape is one pattern and the cells that make it.
+message Shape {
+  Pattern pattern = 1;
+  string label = 2;
+  repeated Offset cells = 3;
+}
+
+// Catalogue is the set of shapes the server can stamp.
+message Catalogue {
+  repeated Shape shapes = 1;
+}
+
+// PlaceRequest asks the server to stamp one pattern.
+message PlaceRequest {
+  Pattern pattern = 1;
+}
+
+// PlaceResponse reports where the stamp landed.
+message PlaceResponse {
+  Pattern pattern = 1;
+  Offset origin = 2;
+  bool applied = 3;
+}
+
+// LayoutService places a pattern on the board.
+service LayoutService {
+  // Place stamps the pattern at an in-board origin in the caller's colour.
+  rpc Place(PlaceRequest) returns (PlaceResponse);
+}
