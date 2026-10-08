@@ -23,7 +23,7 @@ type handler struct {
 	grid    grid.Grid
 	svc     user.Service
 	mu      sync.Mutex
-	clients map[string]*websocket.Conn
+	clients map[*websocket.Conn]user.User
 
 	writeMu sync.Mutex
 }
@@ -32,7 +32,7 @@ func New(board grid.Grid, svc user.Service) Handler {
 	return &handler{
 		grid:    board,
 		svc:     svc,
-		clients: make(map[string]*websocket.Conn),
+		clients: make(map[*websocket.Conn]user.User),
 	}
 }
 

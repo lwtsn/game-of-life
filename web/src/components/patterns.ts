@@ -19,6 +19,18 @@ export const patterns = [
 
 export type PatternName = (typeof patterns)[number]
 
+export function cellAtPoint(x: number, y: number, cell: number) {
+  if (cell <= 0) return null
+  const step = cell + GAP
+  const col = Math.floor(x / step)
+  const row = Math.floor(y / step)
+  if (col < 0 || row < 0 || col >= COLS || row >= ROWS) return null
+  const localX = x - col * step
+  const localY = y - row * step
+  if (localX < 0 || localY < 0 || localX >= cell || localY >= cell) return null
+  return row * COLS + col
+}
+
 export function boardSize(cell: number) {
   return {
     width: COLS * cell + (COLS - 1) * GAP,

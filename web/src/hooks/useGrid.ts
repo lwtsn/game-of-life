@@ -3,7 +3,7 @@ import { readGridFrame, type Cell } from '../api/grid.ts'
 import { useGameSocket } from './useGameSocket.ts'
 
 export function useGrid() {
-  const { lastJsonMessage } = useGameSocket()
+  const { lastJsonMessage, sendJsonMessage } = useGameSocket()
   const [cells, setCells] = useState<Cell[] | null>(null)
 
   useEffect(() => {
@@ -11,5 +11,9 @@ export function useGrid() {
     if (frame) setCells(frame.cells)
   }, [lastJsonMessage])
 
-  return cells
+  function place(x: number, y: number) {
+    sendJsonMessage({ x, y })
+  }
+
+  return { cells, place }
 }

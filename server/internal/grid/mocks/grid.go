@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 	"game_of_life/server/internal/grid/source"
+	"game_of_life/server/internal/user"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -122,6 +123,69 @@ func (_c *MockGrid_Current_Call) Return(frame source.Frame) *MockGrid_Current_Ca
 }
 
 func (_c *MockGrid_Current_Call) RunAndReturn(run func() source.Frame) *MockGrid_Current_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Place provides a mock function for the type MockGrid
+func (_mock *MockGrid) Place(x int, y int, person user.User) bool {
+	ret := _mock.Called(x, y, person)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Place")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(int, int, user.User) bool); ok {
+		r0 = returnFunc(x, y, person)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockGrid_Place_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Place'
+type MockGrid_Place_Call struct {
+	*mock.Call
+}
+
+// Place is a helper method to define mock.On call
+//   - x int
+//   - y int
+//   - person user.User
+func (_e *MockGrid_Expecter) Place(x any, y any, person any) *MockGrid_Place_Call {
+	return &MockGrid_Place_Call{Call: _e.mock.On("Place", x, y, person)}
+}
+
+func (_c *MockGrid_Place_Call) Run(run func(x int, y int, person user.User)) *MockGrid_Place_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 int
+		if args[0] != nil {
+			arg0 = args[0].(int)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 user.User
+		if args[2] != nil {
+			arg2 = args[2].(user.User)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGrid_Place_Call) Return(b bool) *MockGrid_Place_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockGrid_Place_Call) RunAndReturn(run func(x int, y int, person user.User) bool) *MockGrid_Place_Call {
 	_c.Call.Return(run)
 	return _c
 }

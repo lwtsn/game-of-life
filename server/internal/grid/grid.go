@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"game_of_life/server/internal/grid/source"
+	"game_of_life/server/internal/user"
 )
 
 type Grid interface {
@@ -14,6 +15,7 @@ type Grid interface {
 	Advance()
 	Start(context.Context)
 	Updates() <-chan []byte
+	Place(x, y int, person user.User) bool
 }
 
 type snapshot struct {
@@ -66,6 +68,25 @@ func (g *grid) Advance() {
 
 func (g *grid) Updates() <-chan []byte {
 	return g.updates
+}
+
+// Place records that this person made the square at column x and row y alive.
+// It returns false when there is no board, the person is nil, or the square is outside the board.
+func (g *grid) Place(x, y int, person user.User) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.current == nil || person == nil {
+		return false
+	}
+	width := g.current.Width()
+	height := g.current.Height()
+	if x < 0 || y < 0 || x >= width || y >= height {
+		return false
+	}
+	cells := append([]source.Cell(nil), g.current.Cells()...)
+	cells[y*width+x] = source.Cell{Alive: true, User: person}
+	g.current = snapshot{width: width, height: height, cells: cells}
+	return true
 }
 
 // Start runs the simulation until ctx is cancelled. A second call does nothing.
