@@ -30,7 +30,7 @@ func (h *handler) Serve(c *gin.Context) {
 		h.disconnect(conn)
 		return
 	}
-	if err := h.send(c.Request.Context(), conn, payload); err != nil {
+	if err := h.send(conn, payload); err != nil {
 		h.disconnect(conn)
 		return
 	}
@@ -205,7 +205,7 @@ func (h *handler) tellColour(id, colour string) {
 		if person == nil || person.ID() != id {
 			continue
 		}
-		if err := h.send(context.Background(), conn, payload); err != nil {
+		if err := h.send(conn, payload); err != nil {
 			h.disconnect(conn)
 		}
 	}
