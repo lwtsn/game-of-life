@@ -2,12 +2,13 @@ package main
 
 import (
 	"net/http"
-	"net/url"
+
+	"game_of_life/server/api/websocket"
 )
 
-func corsLocal(next http.Handler) http.Handler {
+func withCORS(next http.Handler, origins websocket.Origins) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if originAllowed(r.Header.Get("Origin")) {
+		if origins.Allows(r.Header.Get("Origin")) {
 			header := w.Header()
 			header.Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 			header.Add("Vary", "Origin")
@@ -21,20 +22,4 @@ func corsLocal(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-func originAllowed(origin string) bool {
-	parsed, err := url.Parse(origin)
-	if err != nil || parsed.Host == "" {
-		return false
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return false
-	}
-	switch parsed.Hostname() {
-	case "localhost", "127.0.0.1":
-		return true
-	default:
-		return false
-	}
 }

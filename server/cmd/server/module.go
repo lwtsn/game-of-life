@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"game_of_life/server/api"
+	"game_of_life/server/api/websocket"
 	"game_of_life/server/internal/grid"
 	"game_of_life/server/internal/grid/life"
 	"game_of_life/server/internal/user"
@@ -21,6 +22,7 @@ import (
 type config struct {
 	addr    string
 	webRoot string
+	origins websocket.Origins
 }
 
 func module() fx.Option {
@@ -29,7 +31,7 @@ func module() fx.Option {
 		grid.Module,
 		user.Module,
 		api.Module,
-		fx.Provide(provideConfig, provideHTTP),
+		fx.Provide(provideConfig, provideOrigins, provideHTTP),
 		fx.Invoke(start),
 	)
 }
@@ -39,7 +41,16 @@ func provideConfig() config {
 	if addr == "" {
 		addr = "127.0.0.1:8080"
 	}
-	return config{addr: addr, webRoot: os.Getenv("WEB_ROOT")}
+	return config{
+		addr:    addr,
+		webRoot: os.Getenv("WEB_ROOT"),
+		origins: websocket.ParseOrigins(os.Getenv("GAME_ALLOWED_ORIGINS")),
+	}
+}
+
+// provideOrigins hands the same allow-list to the socket that the Connect CORS check uses.
+func provideOrigins(cfg config) websocket.Origins {
+	return cfg.origins
 }
 
 func provideHTTP(cfg config, handler api.Handler, rpc *connect.Server) *http.Server {
@@ -52,7 +63,7 @@ func provideHTTP(cfg config, handler api.Handler, rpc *connect.Server) *http.Ser
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, rpc)
 	mux.Handle("/", engine)
-	return &http.Server{Addr: cfg.addr, Handler: corsLocal(mux)}
+	return &http.Server{Addr: cfg.addr, Handler: withCORS(mux, cfg.origins)}
 }
 
 func start(lc fx.Lifecycle, server *http.Server, handler api.Handler, board grid.Grid) {
