@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import useWebSocketImport from 'react-use-websocket'
 import { socketUrl } from '../api/socket.ts'
 
@@ -65,12 +65,11 @@ export function useGameSocket() {
   else if (socket.readyState === OPEN) connection = 'open'
   else connection = opened ? 'reconnecting' : 'connecting'
 
-  return {
-    ...socket,
-    connection,
-    reconnect: () => {
-      setGaveUp(false)
-      setAttempt((count) => count + 1)
-    },
-  }
+  // Stable across renders, so it can sit in context without re-rendering consumers.
+  const reconnect = useCallback(() => {
+    setGaveUp(false)
+    setAttempt((count) => count + 1)
+  }, [])
+
+  return { ...socket, connection, reconnect }
 }
