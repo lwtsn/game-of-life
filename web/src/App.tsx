@@ -6,28 +6,35 @@ import { ColourWheel } from './components/ColourWheel.tsx'
 import { ConnectionNotice } from './components/ConnectionNotice.tsx'
 import { PatternToolbar } from './components/PatternToolbar.tsx'
 import { Presence } from './components/Presence.tsx'
+import {
+  GameProvider,
+  useBoard,
+  useClock,
+  useCommands,
+  useConnection,
+  useFrame,
+  usePeople,
+  usePresenceToasts,
+} from './game/index.ts'
 import type { Pattern } from './gen/life/v1/pattern_pb.js'
-import { useLiveGame } from './hooks/useLiveGame.ts'
 import { usePlacePattern } from './hooks/usePlacePattern.ts'
 
+const INK = '#112D4E'
+
 function App() {
-  const {
-    connection,
-    reconnect,
-    cells,
-    people,
-    you,
-    place,
-    reset,
-    chooseColour,
-    running,
-    pace,
-    frame,
-    applied,
-    setRunning,
-    setPace,
-  } = useLiveGame()
-  const placePattern = usePlacePattern()
+  return (
+    <GameProvider>
+      <Game />
+    </GameProvider>
+  )
+}
+
+// Game lays out the page. It only re-renders when people or the colour picker change;
+// the board, clock and frame counter each subscribe to their own slice below.
+function Game() {
+  usePresenceToasts()
+  const { people, you, chooseColour } = usePeople()
+  const { reset } = useCommands()
   const [open, setOpen] = useState(false)
   const [dragPattern, setDragPattern] = useState<Pattern | null>(null)
   const [draft, setDraft] = useState<string | null>(null)
@@ -60,26 +67,20 @@ function App() {
     <main className="grid h-svh grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden bg-paper font-sans text-navy md:grid-cols-[7.5rem_minmax(0,1fr)] md:grid-rows-[auto_minmax(0,1fr)_auto]">
       <header className="flex items-center justify-between gap-4 border-b border-mist px-4 py-3 md:col-span-2">
         <Presence people={people} />
-        <FrameReadout frame={frame} applied={applied} />
+        <LiveFrameReadout />
       </header>
-      <ConnectionNotice connection={connection} onReconnect={reconnect} />
+      <LiveConnectionNotice />
       <PatternToolbar onDragPattern={setDragPattern} />
       <div className="h-full min-h-0 min-w-0 md:col-start-2 md:row-start-2">
-        <Board
-          cells={cells}
-          colour={you ?? '#112D4E'}
-          dragPattern={dragPattern}
-          onPlace={place}
-          onStamp={placePattern}
-        />
+        <LiveBoard colour={you ?? INK} dragPattern={dragPattern} />
       </div>
       <footer className="flex flex-wrap items-center gap-3 border-t border-mist px-4 py-3 md:col-span-2">
-        <ClockControls running={running} pace={pace} onRunning={setRunning} onPace={setPace} />
+        <LiveClockControls />
         <div ref={colour} className="relative flex items-center gap-2">
           {open && (
             <div className="absolute right-0 bottom-full z-40 mb-2">
               <ColourWheel
-                colour={you ?? '#112D4E'}
+                colour={you ?? INK}
                 onPreview={setDraft}
                 onPick={(hex) => {
                   picked.current = hex
@@ -113,6 +114,27 @@ function App() {
       />
     </main>
   )
+}
+
+function LiveBoard({ colour, dragPattern }: { colour: string; dragPattern: Pattern | null }) {
+  const { cells, place } = useBoard()
+  const placePattern = usePlacePattern()
+  return <Board cells={cells} colour={colour} dragPattern={dragPattern} onPlace={place} onStamp={placePattern} />
+}
+
+function LiveFrameReadout() {
+  const { frame, applied } = useFrame()
+  return <FrameReadout frame={frame} applied={applied} />
+}
+
+function LiveClockControls() {
+  const { running, pace, setRunning, setPace } = useClock()
+  return <ClockControls running={running} pace={pace} onRunning={setRunning} onPace={setPace} />
+}
+
+function LiveConnectionNotice() {
+  const { connection, reconnect } = useConnection()
+  return <ConnectionNotice connection={connection} onReconnect={reconnect} />
 }
 
 export default App
