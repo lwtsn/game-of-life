@@ -1,5 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import { cellAtPoint, cellNear, cellsAlong, stampOrigin } from './patterns.ts'
+import { Pattern } from '../gen/life/v1/pattern_pb.js'
+import { cellAtPoint, cellNear, cellsAlong, patternButtons, stampOrigin } from './patterns.ts'
+
+describe('patternButtons', () => {
+  it('loads shapes from the proto catalogue', () => {
+    expect(patternButtons.map((item) => item.pattern)).toEqual([
+      Pattern.BLOCK,
+      Pattern.BLINKER,
+      Pattern.GLIDER,
+      Pattern.BEACON,
+    ])
+    expect(patternButtons.find((item) => item.pattern === Pattern.GLIDER)).toEqual({
+      pattern: Pattern.GLIDER,
+      label: 'Glider',
+      width: 3,
+      height: 3,
+      cells: [
+        [1, 0],
+        [2, 1],
+        [0, 2],
+        [1, 2],
+        [2, 2],
+      ],
+    })
+    expect(patternButtons.find((item) => item.pattern === Pattern.BLOCK)?.cells).toEqual([
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+    ])
+  })
+})
+
 
 describe('cellAtPoint', () => {
   it('returns the cell under the point', () => {

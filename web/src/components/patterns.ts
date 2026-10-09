@@ -1,22 +1,44 @@
+import { fromJson } from '@bufbuild/protobuf'
 import { COLS, ROWS } from '../api/grid.ts'
-import { Pattern } from '../gen/life/v1/pattern_pb.js'
+import { CatalogueSchema, type Pattern, type Shape } from '../gen/life/v1/pattern_pb.js'
+import catalogueJson from '../gen/life/v1/catalogue.json' with { type: 'json' }
 
 export { COLS, ROWS }
 
 export const GAP = 1
 
-export const patternButtons = [
-  { pattern: Pattern.BLOCK, label: 'Block', width: 2, height: 2, cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
-  { pattern: Pattern.BLINKER, label: 'Blinker', width: 3, height: 2, cells: [[0, 1], [1, 1], [2, 1]] },
-  { pattern: Pattern.GLIDER, label: 'Glider', width: 3, height: 3, cells: [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]] },
-  {
-    pattern: Pattern.BEACON,
-    label: 'Beacon',
-    width: 4,
-    height: 4,
-    cells: [[0, 0], [1, 0], [0, 1], [1, 1], [2, 2], [3, 2], [2, 3], [3, 3]],
-  },
-] as const
+export type PatternButton = {
+  pattern: Pattern
+  label: string
+  width: number
+  height: number
+  cells: Array<[number, number]>
+}
+
+// catalogue.json is protojson of life.v1.Catalogue, exported from patterns.textproto.
+const catalogue = fromJson(CatalogueSchema, catalogueJson)
+
+function buttonFrom(shape: Shape): PatternButton {
+  let maxX = 0
+  let maxY = 0
+  const cells: Array<[number, number]> = []
+  for (const cell of shape.cells) {
+    const x = cell.x
+    const y = cell.y
+    if (x > maxX) maxX = x
+    if (y > maxY) maxY = y
+    cells.push([x, y])
+  }
+  return {
+    pattern: shape.pattern,
+    label: shape.label,
+    width: maxX + 1,
+    height: maxY + 1,
+    cells,
+  }
+}
+
+export const patternButtons: PatternButton[] = catalogue.shapes.map(buttonFrom)
 
 export function stampOrigin(col: number, row: number, width: number, height: number) {
   return {
