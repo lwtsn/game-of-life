@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import useWebSocketImport from 'react-use-websocket'
 import { socketUrl } from '../api/socket.ts'
 
@@ -20,8 +21,27 @@ function resolveUseWebSocket(mod: UseWebSocket): UseWebSocket {
 
 const useWebSocket = resolveUseWebSocket(useWebSocketImport)
 
+// Connection is what the page can say about the socket.
+// off: no socket configured (tests). lost: retries ran out and the player has to ask again.
+export type Connection = 'off' | 'connecting' | 'open' | 'reconnecting' | 'lost'
+
+// ReadyState.OPEN in react-use-websocket.
+const OPEN = 1
+
+// reconnectDelay doubles from one second up to thirty, with jitter so clients do not retry together.
+export function reconnectDelay(attempt: number) {
+  const backoff = Math.min(1_000 * 2 ** attempt, 30_000)
+  const jitter = Math.random() * 500
+  return backoff + jitter
+}
+
 export function useGameSocket() {
-  const url = socketUrl()
+  const [attempt, setAttempt] = useState(0)
+  const [gaveUp, setGaveUp] = useState(false)
+  const [opened, setOpened] = useState(false)
+  const base = socketUrl()
+  // A new URL makes the library open a new socket. The server only reads session.
+  const url = base.length > 0 && attempt > 0 ? `${base}&attempt=${attempt}` : base
 
   const socket = useWebSocket(
     url,
@@ -29,10 +49,28 @@ export function useGameSocket() {
       share: true,
       shouldReconnect: () => true,
       reconnectAttempts: 10,
-      reconnectInterval: 3_000,
+      reconnectInterval: reconnectDelay,
+      onOpen: () => {
+        setOpened(true)
+        setGaveUp(false)
+      },
+      onReconnectStop: () => setGaveUp(true),
     },
     url.length > 0,
   )
 
-  return socket
+  let connection: Connection
+  if (url.length === 0) connection = 'off'
+  else if (gaveUp) connection = 'lost'
+  else if (socket.readyState === OPEN) connection = 'open'
+  else connection = opened ? 'reconnecting' : 'connecting'
+
+  return {
+    ...socket,
+    connection,
+    reconnect: () => {
+      setGaveUp(false)
+      setAttempt((count) => count + 1)
+    },
+  }
 }

@@ -3,6 +3,7 @@ import { Toaster } from 'sonner'
 import { Board } from './components/Board.tsx'
 import { ClockControls, FrameReadout } from './components/Clock.tsx'
 import { ColourWheel } from './components/ColourWheel.tsx'
+import { ConnectionNotice } from './components/ConnectionNotice.tsx'
 import { PatternToolbar } from './components/PatternToolbar.tsx'
 import { Presence } from './components/Presence.tsx'
 import type { Pattern } from './gen/life/v1/pattern_pb.js'
@@ -10,8 +11,22 @@ import { useLiveGame } from './hooks/useLiveGame.ts'
 import { usePlacePattern } from './hooks/usePlacePattern.ts'
 
 function App() {
-  const { cells, people, you, place, reset, chooseColour, running, pace, frame, applied, setRunning, setPace } =
-    useLiveGame()
+  const {
+    connection,
+    reconnect,
+    cells,
+    people,
+    you,
+    place,
+    reset,
+    chooseColour,
+    running,
+    pace,
+    frame,
+    applied,
+    setRunning,
+    setPace,
+  } = useLiveGame()
   const placePattern = usePlacePattern()
   const [open, setOpen] = useState(false)
   const [dragPattern, setDragPattern] = useState<Pattern | null>(null)
@@ -47,6 +62,7 @@ function App() {
         <Presence people={people} />
         <FrameReadout frame={frame} applied={applied} />
       </header>
+      <ConnectionNotice connection={connection} onReconnect={reconnect} />
       <PatternToolbar onDragPattern={setDragPattern} />
       <div className="h-full min-h-0 min-w-0 md:col-start-2 md:row-start-2">
         <Board
