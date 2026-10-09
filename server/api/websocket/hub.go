@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"errors"
 	"log"
 	"sync"
 
@@ -22,13 +23,30 @@ type Handler interface {
 	Publish()
 }
 
+// mailboxSize is how many messages a socket may fall behind before it is dropped.
+// At the fastest pace that is well over half a second of boards.
+const mailboxSize = 64
+
+var (
+	errGone = errors.New("socket has disconnected")
+	errSlow = errors.New("socket is not keeping up")
+)
+
+// client is one socket. Only its pump goroutine writes to the network.
+type client struct {
+	person user.User
+	out    chan []byte
+}
+
 type handler struct {
 	grid    grid.Grid
 	svc     user.Service
 	origins Origins
 	mu      sync.Mutex
-	clients map[*websocket.Conn]user.User
+	clients map[*websocket.Conn]*client
 
+	// writeMu orders what goes into the mailboxes, so a stale board can never follow an edit.
+	// It is only held while queueing, never during a network write.
 	writeMu sync.Mutex
 }
 
@@ -46,7 +64,7 @@ func New(p Params) Handler {
 		grid:    p.Grid,
 		svc:     p.Users,
 		origins: p.Origins,
-		clients: make(map[*websocket.Conn]user.User),
+		clients: make(map[*websocket.Conn]*client),
 	}
 }
 
@@ -62,12 +80,9 @@ func (h *handler) Run(ctx context.Context) {
 				h.writeMu.Unlock()
 				continue
 			}
-			failed := h.writeLocked(payload)
+			slow := h.enqueueLocked(payload)
 			h.writeMu.Unlock()
-			for _, conn := range failed {
-				h.disconnect(conn)
-			}
-			if len(failed) > 0 {
+			if h.drop(slow) {
 				h.broadcastPeople()
 			}
 		}
@@ -107,28 +122,55 @@ func (h *handler) Publish() {
 	h.writeAll(payload)
 }
 
+// writeAll queues the payload for every socket. It reports whether any socket was dropped.
 func (h *handler) writeAll(payload []byte) bool {
 	h.writeMu.Lock()
-	failed := h.writeLocked(payload)
+	slow := h.enqueueLocked(payload)
 	h.writeMu.Unlock()
-	for _, conn := range failed {
-		h.disconnect(conn)
-	}
-	return len(failed) > 0
+	return h.drop(slow)
 }
 
-func (h *handler) writeLocked(payload []byte) []*websocket.Conn {
-	var failed []*websocket.Conn
-	for _, conn := range h.conns() {
-		if err := writeFrame(context.Background(), conn, payload); err != nil {
-			failed = append(failed, conn)
+// enqueueLocked puts the payload in every mailbox without waiting on the network.
+// It returns the sockets whose mailbox is full. The caller holds writeMu.
+func (h *handler) enqueueLocked(payload []byte) []*websocket.Conn {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var slow []*websocket.Conn
+	for conn, c := range h.clients {
+		select {
+		case c.out <- payload:
+		default:
+			slow = append(slow, conn)
 		}
 	}
-	return failed
+	return slow
 }
 
-func (h *handler) send(ctx context.Context, conn *websocket.Conn, payload []byte) error {
+// drop disconnects sockets that fell behind. They reconnect and get a full board.
+func (h *handler) drop(slow []*websocket.Conn) bool {
+	dropped := false
+	for _, conn := range slow {
+		if h.disconnect(conn) {
+			dropped = true
+		}
+	}
+	return dropped
+}
+
+// send queues a payload for one socket.
+func (h *handler) send(conn *websocket.Conn, payload []byte) error {
 	h.writeMu.Lock()
 	defer h.writeMu.Unlock()
-	return writeFrame(ctx, conn, payload)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	c, ok := h.clients[conn]
+	if !ok {
+		return errGone
+	}
+	select {
+	case c.out <- payload:
+		return nil
+	default:
+		return errSlow
+	}
 }
