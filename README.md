@@ -1,5 +1,7 @@
 # Game of Life
 
+Authored by Luke Watson with Grok Build CLI.
+
 ## What is it
 This is an implementation of Conway's Game of Life.
 
@@ -13,6 +15,8 @@ For each cell on the grid:
 - If an empty (dead) cell has exactly 3 neighbours it is born
 
 ## Design decisions
+
+This was AI-assisted development. I made the core business and design decisions, such as:
 
 ### Heavy computational logic is done in the backend in Golang.
 The frontend (React and HTML canvas) is used purely for display and interaction.
@@ -80,7 +84,7 @@ I also build [Wisp](https://usewisp.dev), an open-source Go trading framework wi
 
 ## On your machine
 
-Go 1.26 and Node 22 are enough. Start the server before the page.
+Go 1.26 and Node 22 are enough. Start the server before the page. GitHub Actions runs the Go tests, TypeScript check, Vitest, and lint on every push to `main`.
 
 ```sh
 cd server
