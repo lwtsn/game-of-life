@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"time"
@@ -48,8 +49,15 @@ var _ = Describe("fan-out", func() {
 		}
 		Expect(time.Since(start)).To(BeNumerically("<", 250*time.Millisecond))
 
-		for range boards {
-			Expect(readBoard(reader, ctx)).To(Equal(bigJSON))
+		// Compare raw bytes. Decoding 480 KB of JSON per board under -race takes long enough
+		// that the reader becomes a slow client itself and its writes time out.
+		got := 0
+		for got < boards {
+			_, data, err := reader.Read(ctx)
+			Expect(err).NotTo(HaveOccurred())
+			if bytes.Equal(data, bigJSON) {
+				got++
+			}
 		}
 
 		// The stuck socket's write times out and it is dropped. The reader stays.
