@@ -8,7 +8,7 @@ import { ClientMessageSchema, MessageType, PaceBound, Playback } from '../gen/li
 import { useGameSocket } from './useGameSocket.ts'
 
 export function useLiveGame() {
-  const { lastJsonMessage, sendJsonMessage } = useGameSocket()
+  const { lastJsonMessage, sendJsonMessage, connection, reconnect } = useGameSocket()
   const [cells, setCells] = useState<Cell[] | null>(null)
   const [people, setPeople] = useState<string[]>([])
   const [you, setYou] = useState<string | null>(null)
@@ -82,6 +82,8 @@ export function useLiveGame() {
   }, [])
 
   return {
+    connection,
+    reconnect,
     cells,
     people,
     you,
