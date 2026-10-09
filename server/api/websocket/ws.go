@@ -14,7 +14,7 @@ import (
 
 func (h *handler) Serve(c *gin.Context) {
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
-		OriginPatterns: []string{"127.0.0.1:*", "localhost:*"},
+		OriginPatterns: h.origins.Patterns(),
 	})
 	if err != nil {
 		log.Printf("websocket accept: %v", err)

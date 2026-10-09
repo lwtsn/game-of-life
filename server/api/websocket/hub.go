@@ -11,6 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/fx"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -24,16 +25,27 @@ type Handler interface {
 type handler struct {
 	grid    grid.Grid
 	svc     user.Service
+	origins Origins
 	mu      sync.Mutex
 	clients map[*websocket.Conn]user.User
 
 	writeMu sync.Mutex
 }
 
-func New(board grid.Grid, svc user.Service) Handler {
+// Params are the handler's dependencies. Origins is optional and falls back to DefaultOrigins.
+type Params struct {
+	fx.In
+
+	Grid    grid.Grid
+	Users   user.Service
+	Origins Origins `optional:"true"`
+}
+
+func New(p Params) Handler {
 	return &handler{
-		grid:    board,
-		svc:     svc,
+		grid:    p.Grid,
+		svc:     p.Users,
+		origins: p.Origins,
 		clients: make(map[*websocket.Conn]user.User),
 	}
 }
