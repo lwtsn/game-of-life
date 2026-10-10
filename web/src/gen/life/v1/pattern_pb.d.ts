@@ -80,6 +80,38 @@ export declare type Catalogue = Message<"life.v1.Catalogue"> & {
 export declare const CatalogueSchema: GenMessage<Catalogue>;
 
 /**
+ * ListPatternsRequest asks for every shape the server can stamp.
+ *
+ * @generated from message life.v1.ListPatternsRequest
+ */
+export declare type ListPatternsRequest = Message<"life.v1.ListPatternsRequest"> & {
+};
+
+/**
+ * Describes the message life.v1.ListPatternsRequest.
+ * Use `create(ListPatternsRequestSchema)` to create a new message.
+ */
+export declare const ListPatternsRequestSchema: GenMessage<ListPatternsRequest>;
+
+/**
+ * ListPatternsResponse is the server's catalogue, in the order the page shows it.
+ *
+ * @generated from message life.v1.ListPatternsResponse
+ */
+export declare type ListPatternsResponse = Message<"life.v1.ListPatternsResponse"> & {
+  /**
+   * @generated from field: repeated life.v1.Shape shapes = 1;
+   */
+  shapes: Shape[];
+};
+
+/**
+ * Describes the message life.v1.ListPatternsResponse.
+ * Use `create(ListPatternsResponseSchema)` to create a new message.
+ */
+export declare const ListPatternsResponseSchema: GenMessage<ListPatternsResponse>;
+
+/**
  * PlaceRequest asks the server to stamp one pattern.
  *
  * @generated from message life.v1.PlaceRequest
@@ -172,11 +204,21 @@ export enum Pattern {
 export declare const PatternSchema: GenEnum<Pattern>;
 
 /**
- * LayoutService places a pattern on the board.
+ * LayoutService lists the patterns and places one on the board.
  *
  * @generated from service life.v1.LayoutService
  */
 export declare const LayoutService: GenService<{
+  /**
+   * ListPatterns returns the shapes Place can stamp, so the page draws its buttons from the server's catalogue.
+   *
+   * @generated from rpc life.v1.LayoutService.ListPatterns
+   */
+  listPatterns: {
+    methodKind: "unary";
+    input: typeof ListPatternsRequestSchema;
+    output: typeof ListPatternsResponseSchema;
+  },
   /**
    * Place stamps the pattern at an in-board origin in the caller's colour.
    *

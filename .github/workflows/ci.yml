@@ -35,14 +35,6 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: server/go.mod
-          cache-dependency-path: server/go.sum
-      - name: Catalogue matches patterns.textproto
-        run: |
-          npm run catalogue
-          git diff --exit-code -- src/gen/life/v1/catalogue.json
       - run: npx tsc -b
       - run: npm test
       - run: npm run lint

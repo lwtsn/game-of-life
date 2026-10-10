@@ -19,6 +19,20 @@ type handler struct {
 	origin  layout.Origin
 }
 
+// ListPatterns returns the catalogue Place stamps from. It needs no session: the shapes are the same for everyone.
+func (h *handler) ListPatterns(context.Context, *lifepb.ListPatternsRequest) (*lifepb.ListPatternsResponse, error) {
+	shapes := h.shapes.Shapes()
+	out := make([]*lifepb.Shape, len(shapes))
+	for i, shape := range shapes {
+		cells := make([]*lifepb.Offset, len(shape.Cells))
+		for j, cell := range shape.Cells {
+			cells[j] = &lifepb.Offset{X: int32(cell.X), Y: int32(cell.Y)}
+		}
+		out[i] = &lifepb.Shape{Pattern: shape.Pattern, Label: shape.Label, Cells: cells}
+	}
+	return &lifepb.ListPatternsResponse{Shapes: out}, nil
+}
+
 func (h *handler) Place(ctx context.Context, req *lifepb.PlaceRequest) (*lifepb.PlaceResponse, error) {
 	if req == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "pattern is required")

@@ -17,6 +17,8 @@ import {
   usePresenceToasts,
 } from './game/index.ts'
 import type { Pattern } from './gen/life/v1/pattern_pb.js'
+import type { PatternButton } from './components/patterns.ts'
+import { usePatterns } from './hooks/usePatterns.ts'
 import { usePlacePattern } from './hooks/usePlacePattern.ts'
 
 const INK = '#112D4E'
@@ -35,6 +37,7 @@ function Game() {
   usePresenceToasts()
   const { people, you, chooseColour } = usePeople()
   const { reset } = useCommands()
+  const patterns = usePatterns()
   const [open, setOpen] = useState(false)
   const [dragPattern, setDragPattern] = useState<Pattern | null>(null)
   const [draft, setDraft] = useState<string | null>(null)
@@ -70,9 +73,13 @@ function Game() {
         <LiveFrameReadout />
       </header>
       <LiveConnectionNotice />
-      <PatternToolbar onDragPattern={setDragPattern} />
+      <PatternToolbar patterns={patterns} onDragPattern={setDragPattern} />
       <div className="h-full min-h-0 min-w-0 md:col-start-2 md:row-start-2">
-        <LiveBoard colour={you ?? INK} dragPattern={dragPattern} />
+        <LiveBoard
+          patterns={patterns.status === 'ready' ? patterns.buttons : undefined}
+          colour={you ?? INK}
+          dragPattern={dragPattern}
+        />
       </div>
       <footer className="flex flex-wrap items-center gap-3 border-t border-mist px-4 py-3 md:col-span-2">
         <LiveClockControls />
@@ -116,10 +123,21 @@ function Game() {
   )
 }
 
-function LiveBoard({ colour, dragPattern }: { colour: string; dragPattern: Pattern | null }) {
+type LiveBoardProps = { patterns?: readonly PatternButton[]; colour: string; dragPattern: Pattern | null }
+
+function LiveBoard({ patterns, colour, dragPattern }: LiveBoardProps) {
   const { cells, place } = useBoard()
   const placePattern = usePlacePattern()
-  return <Board cells={cells} colour={colour} dragPattern={dragPattern} onPlace={place} onStamp={placePattern} />
+  return (
+    <Board
+      cells={cells}
+      patterns={patterns}
+      colour={colour}
+      dragPattern={dragPattern}
+      onPlace={place}
+      onStamp={placePattern}
+    />
+  )
 }
 
 function LiveFrameReadout() {
