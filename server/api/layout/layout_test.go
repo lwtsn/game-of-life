@@ -66,3 +66,26 @@ var _ = Describe("Place", func() {
 		Expect(aliveCount(board)).To(Equal(0))
 	})
 })
+
+var _ = Describe("ListPatterns", func() {
+	It("returns the catalogue without a session", func() {
+		client, _ := placeClient()
+		res, err := client.ListPatterns(context.Background(), &lifepb.ListPatternsRequest{})
+		Expect(err).NotTo(HaveOccurred())
+
+		shapes := res.GetShapes()
+		labels := make([]string, len(shapes))
+		for i, shape := range shapes {
+			labels[i] = shape.GetLabel()
+		}
+		Expect(labels).To(Equal([]string{"Block", "Blinker", "Glider", "Beacon"}))
+
+		glider := shapes[2]
+		Expect(glider.GetPattern()).To(Equal(lifepb.Pattern_PATTERN_GLIDER))
+		cells := make([][2]int32, len(glider.GetCells()))
+		for i, cell := range glider.GetCells() {
+			cells[i] = [2]int32{cell.GetX(), cell.GetY()}
+		}
+		Expect(cells).To(Equal([][2]int32{{1, 0}, {2, 1}, {0, 2}, {1, 2}, {2, 2}}))
+	})
+})

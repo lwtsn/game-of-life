@@ -1,16 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { Pattern } from '../gen/life/v1/pattern_pb.js'
-import { cellAtPoint, cellNear, cellsAlong, patternButtons, stampOrigin } from './patterns.ts'
+import { create } from '@bufbuild/protobuf'
+import { Pattern, ShapeSchema } from '../gen/life/v1/pattern_pb.js'
+import { cellAtPoint, cellNear, cellsAlong, patternButtonsFrom, stampOrigin } from './patterns.ts'
 
-describe('patternButtons', () => {
-  it('loads shapes from the proto catalogue', () => {
-    expect(patternButtons.map((item) => item.pattern)).toEqual([
-      Pattern.BLOCK,
-      Pattern.BLINKER,
-      Pattern.GLIDER,
-      Pattern.BEACON,
-    ])
-    expect(patternButtons.find((item) => item.pattern === Pattern.GLIDER)).toEqual({
+describe('patternButtonsFrom', () => {
+  it('sizes each shape from its cells and keeps the server order', () => {
+    const shapes = [
+      create(ShapeSchema, {
+        pattern: Pattern.BLOCK,
+        label: 'Block',
+        cells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }],
+      }),
+      create(ShapeSchema, {
+        pattern: Pattern.GLIDER,
+        label: 'Glider',
+        cells: [{ x: 1, y: 0 }, { x: 2, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }],
+      }),
+    ]
+    const buttons = patternButtonsFrom(shapes)
+    expect(buttons.map((item) => item.pattern)).toEqual([Pattern.BLOCK, Pattern.GLIDER])
+    expect(buttons[1]).toEqual({
       pattern: Pattern.GLIDER,
       label: 'Glider',
       width: 3,
@@ -23,15 +32,10 @@ describe('patternButtons', () => {
         [2, 2],
       ],
     })
-    expect(patternButtons.find((item) => item.pattern === Pattern.BLOCK)?.cells).toEqual([
-      [0, 0],
-      [1, 0],
-      [0, 1],
-      [1, 1],
-    ])
+    expect(buttons[0].width).toBe(2)
+    expect(buttons[0].height).toBe(2)
   })
 })
-
 
 describe('cellAtPoint', () => {
   it('returns the cell under the point', () => {

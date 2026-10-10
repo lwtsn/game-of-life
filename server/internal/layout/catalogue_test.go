@@ -55,6 +55,25 @@ var _ = Describe("Catalogue", func() {
 		}))
 	})
 
+	It("lists the shapes in the order the text catalogue gives them", func() {
+		shapes := catalogueFrom()
+
+		listed := shapes.Shapes()
+		patterns := make([]lifepb.Pattern, len(listed))
+		for i, shape := range listed {
+			patterns[i] = shape.Pattern
+		}
+		Expect(patterns).To(Equal([]lifepb.Pattern{
+			lifepb.Pattern_PATTERN_BLOCK,
+			lifepb.Pattern_PATTERN_BLINKER,
+			lifepb.Pattern_PATTERN_GLIDER,
+			lifepb.Pattern_PATTERN_BEACON,
+		}))
+
+		listed[0] = listed[1]
+		Expect(shapes.Shapes()[0].Pattern).To(Equal(lifepb.Pattern_PATTERN_BLOCK))
+	})
+
 	It("keeps a random origin inside the board", func() {
 		width := int(lifepb.GridSize_GRID_SIZE_WIDTH)
 		height := int(lifepb.GridSize_GRID_SIZE_HEIGHT)

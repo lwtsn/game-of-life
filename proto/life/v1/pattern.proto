@@ -31,6 +31,14 @@ message Catalogue {
   repeated Shape shapes = 1;
 }
 
+// ListPatternsRequest asks for every shape the server can stamp.
+message ListPatternsRequest {}
+
+// ListPatternsResponse is the server's catalogue, in the order the page shows it.
+message ListPatternsResponse {
+  repeated Shape shapes = 1;
+}
+
 // PlaceRequest asks the server to stamp one pattern.
 message PlaceRequest {
   // pattern is the shape to stamp.
@@ -46,8 +54,10 @@ message PlaceResponse {
   bool applied = 3;
 }
 
-// LayoutService places a pattern on the board.
+// LayoutService lists the patterns and places one on the board.
 service LayoutService {
+  // ListPatterns returns the shapes Place can stamp, so the page draws its buttons from the server's catalogue.
+  rpc ListPatterns(ListPatternsRequest) returns (ListPatternsResponse);
   // Place stamps the pattern at an in-board origin in the caller's colour.
   rpc Place(PlaceRequest) returns (PlaceResponse);
 }

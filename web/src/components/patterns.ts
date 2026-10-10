@@ -1,7 +1,5 @@
-import { fromJson } from '@bufbuild/protobuf'
 import { COLS, ROWS } from '../api/grid.ts'
-import { CatalogueSchema, type Pattern, type Shape } from '../gen/life/v1/pattern_pb.js'
-import catalogueJson from '../gen/life/v1/catalogue.json' with { type: 'json' }
+import type { Pattern, Shape } from '../gen/life/v1/pattern_pb.js'
 
 export { COLS, ROWS }
 
@@ -14,9 +12,6 @@ export type PatternButton = {
   height: number
   cells: Array<[number, number]>
 }
-
-// catalogue.json is protojson of life.v1.Catalogue, exported from patterns.textproto.
-const catalogue = fromJson(CatalogueSchema, catalogueJson)
 
 function buttonFrom(shape: Shape): PatternButton {
   let maxX = 0
@@ -38,7 +33,10 @@ function buttonFrom(shape: Shape): PatternButton {
   }
 }
 
-export const patternButtons: PatternButton[] = catalogue.shapes.map(buttonFrom)
+// patternButtonsFrom turns the shapes ListPatterns returns into what the toolbar and board draw.
+export function patternButtonsFrom(shapes: readonly Shape[]): PatternButton[] {
+  return shapes.map(buttonFrom)
+}
 
 export function stampOrigin(col: number, row: number, width: number, height: number) {
   return {

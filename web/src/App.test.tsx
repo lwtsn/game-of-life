@@ -1,21 +1,34 @@
+import { create } from '@bufbuild/protobuf'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App.tsx'
+import { Pattern, ShapeSchema } from './gen/life/v1/pattern_pb.js'
 import { Board } from './components/Board.tsx'
 import { Presence } from './components/Presence.tsx'
 import { fitCell } from './components/patterns.ts'
+
+// The pattern rail comes from ListPatterns. Here the server's answer is four labelled shapes.
+vi.mock('./api/layout.ts', () => ({
+  listPatterns: async () => [
+    create(ShapeSchema, { pattern: Pattern.BLOCK, label: 'Block', cells: [{ x: 0, y: 0 }] }),
+    create(ShapeSchema, { pattern: Pattern.BLINKER, label: 'Blinker', cells: [{ x: 0, y: 0 }] }),
+    create(ShapeSchema, { pattern: Pattern.GLIDER, label: 'Glider', cells: [{ x: 0, y: 0 }] }),
+    create(ShapeSchema, { pattern: Pattern.BEACON, label: 'Beacon', cells: [{ x: 0, y: 0 }] }),
+  ],
+  placePattern: async () => {},
+}))
 
 afterEach(() => {
   cleanup()
 })
 
 describe('App', () => {
-  it('shows connected colours and the pattern rail', () => {
+  it('shows connected colours and the pattern rail', async () => {
     render(<App />)
     const connected = screen.getByRole('list', { name: 'Connected' })
     expect(connected.querySelectorAll('li')).toHaveLength(0)
     expect(screen.getByRole('complementary', { name: 'Patterns' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Block' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Block' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Blinker' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Glider' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Beacon' })).toBeTruthy()

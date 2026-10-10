@@ -236,6 +236,88 @@ func (x *Catalogue) GetShapes() []*Shape {
 	return nil
 }
 
+// ListPatternsRequest asks for every shape the server can stamp.
+type ListPatternsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPatternsRequest) Reset() {
+	*x = ListPatternsRequest{}
+	mi := &file_life_v1_pattern_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPatternsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPatternsRequest) ProtoMessage() {}
+
+func (x *ListPatternsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_life_v1_pattern_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPatternsRequest.ProtoReflect.Descriptor instead.
+func (*ListPatternsRequest) Descriptor() ([]byte, []int) {
+	return file_life_v1_pattern_proto_rawDescGZIP(), []int{3}
+}
+
+// ListPatternsResponse is the server's catalogue, in the order the page shows it.
+type ListPatternsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Shapes        []*Shape               `protobuf:"bytes,1,rep,name=shapes,proto3" json:"shapes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPatternsResponse) Reset() {
+	*x = ListPatternsResponse{}
+	mi := &file_life_v1_pattern_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPatternsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPatternsResponse) ProtoMessage() {}
+
+func (x *ListPatternsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_life_v1_pattern_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPatternsResponse.ProtoReflect.Descriptor instead.
+func (*ListPatternsResponse) Descriptor() ([]byte, []int) {
+	return file_life_v1_pattern_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListPatternsResponse) GetShapes() []*Shape {
+	if x != nil {
+		return x.Shapes
+	}
+	return nil
+}
+
 // PlaceRequest asks the server to stamp one pattern.
 type PlaceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -249,7 +331,7 @@ type PlaceRequest struct {
 
 func (x *PlaceRequest) Reset() {
 	*x = PlaceRequest{}
-	mi := &file_life_v1_pattern_proto_msgTypes[3]
+	mi := &file_life_v1_pattern_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -261,7 +343,7 @@ func (x *PlaceRequest) String() string {
 func (*PlaceRequest) ProtoMessage() {}
 
 func (x *PlaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_life_v1_pattern_proto_msgTypes[3]
+	mi := &file_life_v1_pattern_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -274,7 +356,7 @@ func (x *PlaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaceRequest.ProtoReflect.Descriptor instead.
 func (*PlaceRequest) Descriptor() ([]byte, []int) {
-	return file_life_v1_pattern_proto_rawDescGZIP(), []int{3}
+	return file_life_v1_pattern_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PlaceRequest) GetPattern() Pattern {
@@ -303,7 +385,7 @@ type PlaceResponse struct {
 
 func (x *PlaceResponse) Reset() {
 	*x = PlaceResponse{}
-	mi := &file_life_v1_pattern_proto_msgTypes[4]
+	mi := &file_life_v1_pattern_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -315,7 +397,7 @@ func (x *PlaceResponse) String() string {
 func (*PlaceResponse) ProtoMessage() {}
 
 func (x *PlaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_life_v1_pattern_proto_msgTypes[4]
+	mi := &file_life_v1_pattern_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -328,7 +410,7 @@ func (x *PlaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaceResponse.ProtoReflect.Descriptor instead.
 func (*PlaceResponse) Descriptor() ([]byte, []int) {
-	return file_life_v1_pattern_proto_rawDescGZIP(), []int{4}
+	return file_life_v1_pattern_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PlaceResponse) GetPattern() Pattern {
@@ -365,6 +447,9 @@ const file_life_v1_pattern_proto_rawDesc = "" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12%\n" +
 	"\x05cells\x18\x03 \x03(\v2\x0f.life.v1.OffsetR\x05cells\"3\n" +
 	"\tCatalogue\x12&\n" +
+	"\x06shapes\x18\x01 \x03(\v2\x0e.life.v1.ShapeR\x06shapes\"\x15\n" +
+	"\x13ListPatternsRequest\">\n" +
+	"\x14ListPatternsResponse\x12&\n" +
 	"\x06shapes\x18\x01 \x03(\v2\x0e.life.v1.ShapeR\x06shapes\"c\n" +
 	"\fPlaceRequest\x12*\n" +
 	"\apattern\x18\x01 \x01(\x0e2\x10.life.v1.PatternR\apattern\x12'\n" +
@@ -378,8 +463,9 @@ const file_life_v1_pattern_proto_rawDesc = "" +
 	"\rPATTERN_BLOCK\x10\x01\x12\x13\n" +
 	"\x0fPATTERN_BLINKER\x10\x02\x12\x12\n" +
 	"\x0ePATTERN_GLIDER\x10\x03\x12\x12\n" +
-	"\x0ePATTERN_BEACON\x10\x042G\n" +
-	"\rLayoutService\x126\n" +
+	"\x0ePATTERN_BEACON\x10\x042\x94\x01\n" +
+	"\rLayoutService\x12K\n" +
+	"\fListPatterns\x12\x1c.life.v1.ListPatternsRequest\x1a\x1d.life.v1.ListPatternsResponse\x126\n" +
 	"\x05Place\x12\x15.life.v1.PlaceRequest\x1a\x16.life.v1.PlaceResponseB(Z&game_of_life/server/gen/life/v1;lifepbb\x06proto3"
 
 var (
@@ -395,30 +481,35 @@ func file_life_v1_pattern_proto_rawDescGZIP() []byte {
 }
 
 var file_life_v1_pattern_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_life_v1_pattern_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_life_v1_pattern_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_life_v1_pattern_proto_goTypes = []any{
-	(Pattern)(0),          // 0: life.v1.Pattern
-	(*Offset)(nil),        // 1: life.v1.Offset
-	(*Shape)(nil),         // 2: life.v1.Shape
-	(*Catalogue)(nil),     // 3: life.v1.Catalogue
-	(*PlaceRequest)(nil),  // 4: life.v1.PlaceRequest
-	(*PlaceResponse)(nil), // 5: life.v1.PlaceResponse
+	(Pattern)(0),                 // 0: life.v1.Pattern
+	(*Offset)(nil),               // 1: life.v1.Offset
+	(*Shape)(nil),                // 2: life.v1.Shape
+	(*Catalogue)(nil),            // 3: life.v1.Catalogue
+	(*ListPatternsRequest)(nil),  // 4: life.v1.ListPatternsRequest
+	(*ListPatternsResponse)(nil), // 5: life.v1.ListPatternsResponse
+	(*PlaceRequest)(nil),         // 6: life.v1.PlaceRequest
+	(*PlaceResponse)(nil),        // 7: life.v1.PlaceResponse
 }
 var file_life_v1_pattern_proto_depIdxs = []int32{
-	0, // 0: life.v1.Shape.pattern:type_name -> life.v1.Pattern
-	1, // 1: life.v1.Shape.cells:type_name -> life.v1.Offset
-	2, // 2: life.v1.Catalogue.shapes:type_name -> life.v1.Shape
-	0, // 3: life.v1.PlaceRequest.pattern:type_name -> life.v1.Pattern
-	1, // 4: life.v1.PlaceRequest.origin:type_name -> life.v1.Offset
-	0, // 5: life.v1.PlaceResponse.pattern:type_name -> life.v1.Pattern
-	1, // 6: life.v1.PlaceResponse.origin:type_name -> life.v1.Offset
-	4, // 7: life.v1.LayoutService.Place:input_type -> life.v1.PlaceRequest
-	5, // 8: life.v1.LayoutService.Place:output_type -> life.v1.PlaceResponse
-	8, // [8:9] is the sub-list for method output_type
-	7, // [7:8] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	0,  // 0: life.v1.Shape.pattern:type_name -> life.v1.Pattern
+	1,  // 1: life.v1.Shape.cells:type_name -> life.v1.Offset
+	2,  // 2: life.v1.Catalogue.shapes:type_name -> life.v1.Shape
+	2,  // 3: life.v1.ListPatternsResponse.shapes:type_name -> life.v1.Shape
+	0,  // 4: life.v1.PlaceRequest.pattern:type_name -> life.v1.Pattern
+	1,  // 5: life.v1.PlaceRequest.origin:type_name -> life.v1.Offset
+	0,  // 6: life.v1.PlaceResponse.pattern:type_name -> life.v1.Pattern
+	1,  // 7: life.v1.PlaceResponse.origin:type_name -> life.v1.Offset
+	4,  // 8: life.v1.LayoutService.ListPatterns:input_type -> life.v1.ListPatternsRequest
+	6,  // 9: life.v1.LayoutService.Place:input_type -> life.v1.PlaceRequest
+	5,  // 10: life.v1.LayoutService.ListPatterns:output_type -> life.v1.ListPatternsResponse
+	7,  // 11: life.v1.LayoutService.Place:output_type -> life.v1.PlaceResponse
+	10, // [10:12] is the sub-list for method output_type
+	8,  // [8:10] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_life_v1_pattern_proto_init() }
@@ -432,7 +523,7 @@ func file_life_v1_pattern_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_life_v1_pattern_proto_rawDesc), len(file_life_v1_pattern_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

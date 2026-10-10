@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import type { Cell } from '../api/grid.ts'
 import type { Pattern } from '../gen/life/v1/pattern_pb.js'
-import { boardSize, cellAtPoint, cellNear, cellsAlong, COLS, fitCell, GAP, patternButtons, ROWS, stampOrigin } from './patterns.ts'
+import { boardSize, cellAtPoint, cellNear, cellsAlong, COLS, fitCell, GAP, ROWS, stampOrigin, type PatternButton } from './patterns.ts'
 
 const DEAD = '#DBE2EF'
 const ALIVE = '#112D4E'
 const GAP_COLOR = '#F9F7F7'
 
-type Ghost = { pattern: Pattern; x: number; y: number }
+// Ghost is a shape being dragged over the board. It carries its cells so drawing needs no lookup.
+type Ghost = { pattern: Pattern; x: number; y: number; cells: PatternButton['cells'] }
 
 function draw(context: CanvasRenderingContext2D, cell: number, cells: Cell[] | null, ghost: Ghost | null, colour: string) {
   const { width, height } = boardSize(cell)
@@ -23,14 +24,13 @@ function draw(context: CanvasRenderingContext2D, cell: number, cells: Cell[] | n
     }
   }
 
-  const shape = ghost ? patternButtons.find((item) => item.pattern === ghost.pattern) : undefined
-  if (!ghost || !shape) return
+  if (!ghost) return
   context.save()
   context.globalAlpha = 0.8
   context.fillStyle = colour
   context.strokeStyle = ALIVE
   context.lineWidth = 1
-  for (const [dx, dy] of shape.cells) {
+  for (const [dx, dy] of ghost.cells) {
     const x = ghost.x + dx
     const y = ghost.y + dy
     context.fillRect(x * step, y * step, cell, cell)
@@ -50,13 +50,16 @@ function placedIndexes(cells: Cell[] | null) {
 
 type BoardProps = {
   cells: Cell[] | null
+  patterns?: readonly PatternButton[]
   colour?: string
   dragPattern?: Pattern | null
   onPlace: (x: number, y: number) => void
   onStamp?: (pattern: Pattern, x: number, y: number) => void
 }
 
-export function Board({ cells, colour = ALIVE, dragPattern = null, onPlace, onStamp }: BoardProps) {
+const NO_PATTERNS: readonly PatternButton[] = []
+
+export function Board({ cells, patterns = NO_PATTERNS, colour = ALIVE, dragPattern = null, onPlace, onStamp }: BoardProps) {
   const frameRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const painting = useRef(false)
@@ -137,15 +140,15 @@ export function Board({ cells, colour = ALIVE, dragPattern = null, onPlace, onSt
     lastCell.current = null
   }
 
-  function originAt(clientX: number, clientY: number, pattern: Pattern) {
+  function originAt(clientX: number, clientY: number, pattern: Pattern): Ghost | null {
     const canvas = canvasRef.current
-    const shape = patternButtons.find((item) => item.pattern === pattern)
+    const shape = patterns.find((item) => item.pattern === pattern)
     if (!canvas || !shape) return null
     const rect = canvas.getBoundingClientRect()
     const index = cellNear(clientX - rect.left, clientY - rect.top, cell)
     if (index === null) return null
     const origin = stampOrigin(index % COLS, Math.floor(index / COLS), shape.width, shape.height)
-    return { pattern, x: origin.x, y: origin.y }
+    return { pattern, x: origin.x, y: origin.y, cells: shape.cells }
   }
 
   function showGhost(clientX: number, clientY: number) {
@@ -171,7 +174,7 @@ export function Board({ cells, colour = ALIVE, dragPattern = null, onPlace, onSt
   function onDrop(event: DragEvent<HTMLCanvasElement>) {
     event.preventDefault()
     const carried = Number(event.dataTransfer.getData('text/plain'))
-    const pattern = patternButtons.some((item) => item.pattern === carried) ? (carried as Pattern) : dragPattern
+    const pattern = patterns.some((item) => item.pattern === carried) ? (carried as Pattern) : dragPattern
     clearGhost()
     if (pattern === null || !onStamp) return
     const origin = originAt(event.clientX, event.clientY, pattern)

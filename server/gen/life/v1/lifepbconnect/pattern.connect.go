@@ -24,11 +24,20 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// LayoutServiceListPatternsProcedure is the procedure name of the LayoutService's ListPatterns RPC.
+	LayoutServiceListPatternsProcedure = "/life.v1.LayoutService/ListPatterns"
 	// LayoutServicePlaceProcedure is the procedure name of the LayoutService's Place RPC.
 	LayoutServicePlaceProcedure = "/life.v1.LayoutService/Place"
 )
 
 var (
+	layoutServiceListPatternsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_life_v1_pattern_proto.Services().ByName("LayoutService").Methods().ByName("ListPatterns"),
+			Procedure:  LayoutServiceListPatternsProcedure,
+		}
+	})
 	layoutServicePlaceSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -40,6 +49,8 @@ var (
 
 // LayoutServiceClient is a client for the life.v1.LayoutService service.
 type LayoutServiceClient interface {
+	// ListPatterns returns the shapes Place can stamp, so the page draws its buttons from the server's catalogue.
+	ListPatterns(context.Context, *v1.ListPatternsRequest) (*v1.ListPatternsResponse, error)
 	// Place stamps the pattern at an in-board origin in the caller's colour.
 	Place(context.Context, *v1.PlaceRequest) (*v1.PlaceResponse, error)
 }
@@ -52,6 +63,8 @@ func NewLayoutServiceClient(client *connect.Client) LayoutServiceClient {
 
 // LayoutServiceHandler is an implementation of the life.v1.LayoutService service.
 type LayoutServiceHandler interface {
+	// ListPatterns returns the shapes Place can stamp, so the page draws its buttons from the server's catalogue.
+	ListPatterns(context.Context, *v1.ListPatternsRequest) (*v1.ListPatternsResponse, error)
 	// Place stamps the pattern at an in-board origin in the caller's colour.
 	Place(context.Context, *v1.PlaceRequest) (*v1.PlaceResponse, error)
 }
@@ -60,6 +73,7 @@ type LayoutServiceHandler interface {
 func RegisterLayoutServiceHandler(server *connect.Server, svc LayoutServiceHandler) {
 	adapter := layoutServiceHandler{svc: svc}
 	server.Register(
+		connect.Method{Spec: layoutServiceListPatternsSpec(), Handler: adapter.listPatterns},
 		connect.Method{Spec: layoutServicePlaceSpec(), Handler: adapter.place},
 	)
 }
@@ -67,12 +81,24 @@ func RegisterLayoutServiceHandler(server *connect.Server, svc LayoutServiceHandl
 // UnimplementedLayoutServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedLayoutServiceHandler struct{}
 
+func (UnimplementedLayoutServiceHandler) ListPatterns(context.Context, *v1.ListPatternsRequest) (*v1.ListPatternsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "life.v1.LayoutService.ListPatterns is not implemented")
+}
+
 func (UnimplementedLayoutServiceHandler) Place(context.Context, *v1.PlaceRequest) (*v1.PlaceResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "life.v1.LayoutService.Place is not implemented")
 }
 
 type layoutServiceClient struct {
 	client *connect.Client
+}
+
+func (c *layoutServiceClient) ListPatterns(ctx context.Context, req *v1.ListPatternsRequest) (*v1.ListPatternsResponse, error) {
+	var res v1.ListPatternsResponse
+	if err := c.client.CallUnary(ctx, layoutServiceListPatternsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (c *layoutServiceClient) Place(ctx context.Context, req *v1.PlaceRequest) (*v1.PlaceResponse, error) {
@@ -84,6 +110,18 @@ func (c *layoutServiceClient) Place(ctx context.Context, req *v1.PlaceRequest) (
 }
 
 type layoutServiceHandler struct{ svc LayoutServiceHandler }
+
+func (h layoutServiceHandler) listPatterns(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListPatternsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListPatterns(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
 
 func (h layoutServiceHandler) place(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.PlaceRequest

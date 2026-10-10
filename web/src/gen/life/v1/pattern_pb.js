@@ -8,7 +8,7 @@ import { enumDesc, fileDesc, messageDesc, serviceDesc, tsEnum } from "@bufbuild/
  * Describes the file life/v1/pattern.proto.
  */
 export const file_life_v1_pattern = /*@__PURE__*/
-  fileDesc("ChVsaWZlL3YxL3BhdHRlcm4ucHJvdG8SB2xpZmUudjEiHgoGT2Zmc2V0EgkKAXgYASABKAUSCQoBeRgCIAEoBSJZCgVTaGFwZRIhCgdwYXR0ZXJuGAEgASgOMhAubGlmZS52MS5QYXR0ZXJuEg0KBWxhYmVsGAIgASgJEh4KBWNlbGxzGAMgAygLMg8ubGlmZS52MS5PZmZzZXQiKwoJQ2F0YWxvZ3VlEh4KBnNoYXBlcxgBIAMoCzIOLmxpZmUudjEuU2hhcGUiUgoMUGxhY2VSZXF1ZXN0EiEKB3BhdHRlcm4YASABKA4yEC5saWZlLnYxLlBhdHRlcm4SHwoGb3JpZ2luGAIgASgLMg8ubGlmZS52MS5PZmZzZXQiZAoNUGxhY2VSZXNwb25zZRIhCgdwYXR0ZXJuGAEgASgOMhAubGlmZS52MS5QYXR0ZXJuEh8KBm9yaWdpbhgCIAEoCzIPLmxpZmUudjEuT2Zmc2V0Eg8KB2FwcGxpZWQYAyABKAgqcgoHUGF0dGVybhIXChNQQVRURVJOX1VOU1BFQ0lGSUVEEAASEQoNUEFUVEVSTl9CTE9DSxABEhMKD1BBVFRFUk5fQkxJTktFUhACEhIKDlBBVFRFUk5fR0xJREVSEAMSEgoOUEFUVEVSTl9CRUFDT04QBDJHCg1MYXlvdXRTZXJ2aWNlEjYKBVBsYWNlEhUubGlmZS52MS5QbGFjZVJlcXVlc3QaFi5saWZlLnYxLlBsYWNlUmVzcG9uc2VCKFomZ2FtZV9vZl9saWZlL3NlcnZlci9nZW4vbGlmZS92MTtsaWZlcGJiBnByb3RvMw");
+  fileDesc("ChVsaWZlL3YxL3BhdHRlcm4ucHJvdG8SB2xpZmUudjEiHgoGT2Zmc2V0EgkKAXgYASABKAUSCQoBeRgCIAEoBSJZCgVTaGFwZRIhCgdwYXR0ZXJuGAEgASgOMhAubGlmZS52MS5QYXR0ZXJuEg0KBWxhYmVsGAIgASgJEh4KBWNlbGxzGAMgAygLMg8ubGlmZS52MS5PZmZzZXQiKwoJQ2F0YWxvZ3VlEh4KBnNoYXBlcxgBIAMoCzIOLmxpZmUudjEuU2hhcGUiFQoTTGlzdFBhdHRlcm5zUmVxdWVzdCI2ChRMaXN0UGF0dGVybnNSZXNwb25zZRIeCgZzaGFwZXMYASADKAsyDi5saWZlLnYxLlNoYXBlIlIKDFBsYWNlUmVxdWVzdBIhCgdwYXR0ZXJuGAEgASgOMhAubGlmZS52MS5QYXR0ZXJuEh8KBm9yaWdpbhgCIAEoCzIPLmxpZmUudjEuT2Zmc2V0ImQKDVBsYWNlUmVzcG9uc2USIQoHcGF0dGVybhgBIAEoDjIQLmxpZmUudjEuUGF0dGVybhIfCgZvcmlnaW4YAiABKAsyDy5saWZlLnYxLk9mZnNldBIPCgdhcHBsaWVkGAMgASgIKnIKB1BhdHRlcm4SFwoTUEFUVEVSTl9VTlNQRUNJRklFRBAAEhEKDVBBVFRFUk5fQkxPQ0sQARITCg9QQVRURVJOX0JMSU5LRVIQAhISCg5QQVRURVJOX0dMSURFUhADEhIKDlBBVFRFUk5fQkVBQ09OEAQylAEKDUxheW91dFNlcnZpY2USSwoMTGlzdFBhdHRlcm5zEhwubGlmZS52MS5MaXN0UGF0dGVybnNSZXF1ZXN0Gh0ubGlmZS52MS5MaXN0UGF0dGVybnNSZXNwb25zZRI2CgVQbGFjZRIVLmxpZmUudjEuUGxhY2VSZXF1ZXN0GhYubGlmZS52MS5QbGFjZVJlc3BvbnNlQihaJmdhbWVfb2ZfbGlmZS9zZXJ2ZXIvZ2VuL2xpZmUvdjE7bGlmZXBiYgZwcm90bzM");
 
 /**
  * Describes the message life.v1.Offset.
@@ -32,18 +32,32 @@ export const CatalogueSchema = /*@__PURE__*/
   messageDesc(file_life_v1_pattern, 2);
 
 /**
+ * Describes the message life.v1.ListPatternsRequest.
+ * Use `create(ListPatternsRequestSchema)` to create a new message.
+ */
+export const ListPatternsRequestSchema = /*@__PURE__*/
+  messageDesc(file_life_v1_pattern, 3);
+
+/**
+ * Describes the message life.v1.ListPatternsResponse.
+ * Use `create(ListPatternsResponseSchema)` to create a new message.
+ */
+export const ListPatternsResponseSchema = /*@__PURE__*/
+  messageDesc(file_life_v1_pattern, 4);
+
+/**
  * Describes the message life.v1.PlaceRequest.
  * Use `create(PlaceRequestSchema)` to create a new message.
  */
 export const PlaceRequestSchema = /*@__PURE__*/
-  messageDesc(file_life_v1_pattern, 3);
+  messageDesc(file_life_v1_pattern, 5);
 
 /**
  * Describes the message life.v1.PlaceResponse.
  * Use `create(PlaceResponseSchema)` to create a new message.
  */
 export const PlaceResponseSchema = /*@__PURE__*/
-  messageDesc(file_life_v1_pattern, 4);
+  messageDesc(file_life_v1_pattern, 6);
 
 /**
  * Describes the enum life.v1.Pattern.
@@ -60,7 +74,7 @@ export const Pattern = /*@__PURE__*/
   tsEnum(PatternSchema);
 
 /**
- * LayoutService places a pattern on the board.
+ * LayoutService lists the patterns and places one on the board.
  *
  * @generated from service life.v1.LayoutService
  */

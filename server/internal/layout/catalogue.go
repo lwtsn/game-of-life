@@ -3,6 +3,7 @@ package layout
 import (
 	"embed"
 	"fmt"
+	"slices"
 
 	lifepb "game_of_life/server/gen/life/v1"
 
@@ -27,18 +28,27 @@ type Shape struct {
 	Height  int
 }
 
-// Catalogue looks up a shape by its pattern.
+// Catalogue is the set of shapes the server can stamp.
 type Catalogue interface {
+	// ByPattern looks up one shape.
 	ByPattern(pattern lifepb.Pattern) (Shape, bool)
+	// Shapes returns every shape in the order patterns.textproto lists them.
+	Shapes() []Shape
 }
 
 type catalogue struct {
 	shapes map[lifepb.Pattern]Shape
+	order  []Shape
 }
 
 func (c catalogue) ByPattern(pattern lifepb.Pattern) (Shape, bool) {
 	shape, ok := c.shapes[pattern]
 	return shape, ok
+}
+
+// Shapes returns a copy, so a caller cannot reorder the catalogue.
+func (c catalogue) Shapes() []Shape {
+	return slices.Clone(c.order)
 }
 
 func loadCatalogue() (Catalogue, error) {
@@ -57,6 +67,7 @@ func loadCatalogue() (Catalogue, error) {
 		lifepb.Pattern_PATTERN_BEACON,
 	}
 	shapes := make(map[lifepb.Pattern]Shape, len(required))
+	order := make([]Shape, 0, len(required))
 	for _, item := range decoded.GetShapes() {
 		pattern := item.GetPattern()
 		if pattern == lifepb.Pattern_PATTERN_UNSPECIFIED {
@@ -70,6 +81,7 @@ func loadCatalogue() (Catalogue, error) {
 			return nil, err
 		}
 		shapes[pattern] = shape
+		order = append(order, shape)
 	}
 	for _, pattern := range required {
 		if _, ok := shapes[pattern]; !ok {
@@ -79,7 +91,7 @@ func loadCatalogue() (Catalogue, error) {
 	if len(shapes) != len(required) {
 		return nil, fmt.Errorf("catalogue has %d shapes", len(shapes))
 	}
-	return catalogue{shapes: shapes}, nil
+	return catalogue{shapes: shapes, order: order}, nil
 }
 
 func shapeFrom(item *lifepb.Shape) (Shape, error) {

@@ -1,6 +1,6 @@
 import type { DragEvent } from 'react'
 import type { Pattern } from '../gen/life/v1/pattern_pb.js'
-import { patternButtons } from './patterns.ts'
+import type { Patterns } from '../hooks/usePatterns.ts'
 
 function alive(cells: readonly (readonly number[])[], x: number, y: number) {
   return cells.some(([cellX, cellY]) => cellX === x && cellY === y)
@@ -13,14 +13,21 @@ function hideDragImage(event: DragEvent<HTMLButtonElement>) {
   event.dataTransfer.setDragImage(blank, 0, 0)
 }
 
-export function PatternToolbar({ onDragPattern }: { onDragPattern: (pattern: Pattern | null) => void }) {
+type PatternToolbarProps = {
+  patterns: Patterns
+  onDragPattern: (pattern: Pattern | null) => void
+}
+
+export function PatternToolbar({ patterns, onDragPattern }: PatternToolbarProps) {
   return (
     <aside
       aria-label="Patterns"
       className="flex min-h-0 gap-2 overflow-x-auto border-b border-mist bg-paper px-4 py-3 md:flex-col md:items-center md:overflow-y-auto md:border-r md:border-b-0"
     >
       <p className="hidden text-[11px] font-semibold tracking-[0.18em] text-blue uppercase md:block">Patterns</p>
-      {patternButtons.map((item) => (
+      {patterns.status === 'loading' && <p className="text-sm text-navy/60">Loading…</p>}
+      {patterns.status === 'failed' && <p className="text-sm text-navy/60">Patterns unavailable</p>}
+      {patterns.status === 'ready' && patterns.buttons.map((item) => (
         <button
           key={item.pattern}
           type="button"
